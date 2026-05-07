@@ -1,39 +1,39 @@
 ---
 name: Showcase submission
-about: Share something you built with this workflow
+about: Share how you use XenoVoice in a real Discord server
 title: '[Showcase] '
 labels: ''
-assignees: KhazP
+assignees: ''
 
 ---
 
-**What did you build?**
+**What kind of server are you using XenoVoice in?**
 
-Share the product name and a short description.
+Share the community type and a short description.
 
-**Public link**
+**Server details (non-sensitive)**
 
-Add the live URL, repo URL, demo video, or screenshots.
+- Approximate member count:
+- Language:
+- Main use case:
 
-**Which parts of this workflow did you use?**
+**Which XenoVoice features are you using?**
 
-Examples: part1 research, part2 PRD, part3 tech design, part4 agent setup, README flow, templates, web app.
+Examples: `/setup`, Join-to-Create, `/panel`, rename, lock/unlock, user limits.
 
-**Your stack / tools**
+**Any screenshots or clips to share?**
 
-- AI tool / IDE: e.g. Cursor, Claude Code, GitHub Copilot, Gemini CLI, ChatGPT, Lovable, Bolt
-- Model family: e.g. Claude Sonnet, Claude Opus, Gemini Pro, Gemini Flash
-- App stack: e.g. Next.js, Supabase, React Native, Sanity, Stripe
+Add screenshots or short clips if you are comfortable sharing them.
 
 **What worked well?**
 
-Call out the prompts, files, or workflow steps that helped most.
+Call out the parts of XenoVoice that helped most.
 
 **What was hard or unclear?**
 
-Share the friction points so the workflow can improve.
+Share the friction points so the bot or docs can improve.
 
-**Can this be featured in the README or docs?**
+**Can this be quoted in docs or listing materials?**
 
 - [ ] Yes, you can feature this publicly.
 - [ ] No, please keep this as feedback only.

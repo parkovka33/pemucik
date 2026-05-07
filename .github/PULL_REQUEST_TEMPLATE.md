@@ -2,7 +2,7 @@
 - [ ] Short description of the change
 
 ## Changes
-- [ ] Key updates (files, prompts, or workflow steps)
+- [ ] Key updates (files, commands, docs, or Discord-facing behavior)
 
 ## Testing
 - [ ] Not run (explain why)
@@ -11,11 +11,12 @@
 
 ## Docs/Guides Impact
 - [ ] README updated (if needed)
-- [ ] Workflow prompts updated (if needed)
-- [ ] Tool config guidance updated (if needed)
+- [ ] `MEMORY.md` updated (if needed)
+- [ ] Operator or troubleshooting docs updated (if needed)
 
 ## Checklist
 - [ ] Changes match project scope
 - [ ] No unrelated files modified
+- [ ] No protected areas changed without approval
 - [ ] Links verified (if applicable)
 - [ ] Ready for review

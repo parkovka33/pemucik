@@ -1,36 +1,37 @@
 ---
 name: Feature request
-about: Suggest an improvement to the prompts, workflow, or docs
+about: Suggest an improvement to XenoVoice behavior or docs
 title: ''
 labels: ''
-assignees: KhazP
+assignees: ''
 
 ---
 
-**Which part of the workflow is this about?**
+**Which part of XenoVoice is this about?**
 
-Examples: Research (part1), PRD (part2), Tech Design (part3), Agent Instructions (part4 / AGENTS.md), docs/README, web app, etc.
+Examples: `/setup`, `/panel`, temp room cleanup, onboarding docs, support flow.
 
 **What problem are you trying to solve?**
 
-A clear and concise description of the problem or friction you hit when using the vibe-coding workflow.
+A clear and concise description of the problem or friction.
 
 **Describe the improvement you'd like**
 
 Explain the change you’d like to see (new section, new questions, better defaults, extra checks, etc.).
 
-**How would this help users?**
+**How would this help admins or members?**
 
-Who benefits (beginners, devs, no-code users, etc.) and how it improves speed, clarity, or reliability.
+Who benefits and how it improves setup, clarity, reliability, or support.
 
 **Any examples or rough draft text?**
 
 If you have suggested wording, prompts, or screenshots, add them here.
 
-**Tool / environment (optional but helpful)**
+**Environment (optional but helpful)**
 
-- AI tool / IDE: e.g. Cursor, Claude Code, Gemini CLI, ChatGPT, Cline, Lovable, Bolt, etc.
-- Model family: e.g. Claude Sonnet, Claude Opus, Gemini Pro, Gemini Flash, etc.
+- Discord server type:
+- Approximate server size:
+- Current bot permissions:
 
 **Additional context**
 

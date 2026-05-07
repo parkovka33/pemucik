@@ -1,0 +1,8 @@
+.env
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+logs/*.log
+backups/
+node_modules/
+dist/

@@ -1,33 +1,57 @@
 # FAQ
 
-## What is this repository?
+## What is XenoVoice?
 
-This repository provides a structured workflow and templates for moving from idea -> research -> PRD -> technical design -> agent-driven MVP implementation.
+XenoVoice is a Discord-only bot that creates temporary voice channels on demand. An admin runs `/setup`, members join the generator voice channel, and XenoVoice creates and later cleans up temporary rooms automatically.
 
-## Is this free to use?
+## Does XenoVoice need a website?
 
-Yes. It is open source under the MIT license. See [LICENSE](../LICENSE).
+No. The MVP is intentionally Discord-only. Setup and owner controls happen through slash commands and Discord components.
 
-## Can I use this commercially?
+## Which commands are available right now?
 
-Yes. MIT allows commercial usage, modification, and redistribution under the license terms.
+- `/setup`
+- `/panel`
+- `/rename`
+- `/lock`
+- `/unlock`
+- `/limit`
+- `/claim`
+- `/help`
+- `/support`
 
-## Where should I start?
+## What can room owners do?
 
-Start with [README.md](../README.md), then use the step files:
-- [part1-deepresearch.md](../part1-deepresearch.md)
-- [part2-prd-mvp.md](../part2-prd-mvp.md)
-- [part3-tech-design-mvp.md](../part3-tech-design-mvp.md)
-- [part4-notes-for-agent.md](../part4-notes-for-agent.md)
+Inside a tracked temporary room, the owner can:
 
-## Where do I ask questions?
+- rename the room
+- lock or unlock it
+- change the user limit
 
-Use [GitHub Discussions](https://github.com/KhazP/vibe-coding-prompt-template/discussions).
+If the owner is gone, a member still inside that tracked room can use `/claim` to take ownership, as long as the old owner is no longer in the room.
 
-## Where do I report bugs or request features?
+Admins can override owner controls if they have `Manage Channels` or `Administrator`.
 
-Use [GitHub Issues](https://github.com/KhazP/vibe-coding-prompt-template/issues) and choose the relevant template.
+## How many generator channels does the MVP support?
 
-## How do I report security issues?
+One generator channel per server.
 
-Do not open a public issue. Use private reporting via [Security Advisories](https://github.com/KhazP/vibe-coding-prompt-template/security/advisories/new).
+## What languages are supported?
+
+The current Discord-facing copy is Russian-first. The broader multilingual plan exists in the product docs, but it is not part of the current MVP surface yet.
+
+## How do I get started?
+
+Start with:
+
+- [README.md](../README.md)
+- [docs/QUICKSTART.md](../docs/QUICKSTART.md)
+- [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md)
+
+## Where do I report bugs or request changes?
+
+Use GitHub Issues and pick the relevant template.
+
+## How do I report a security issue?
+
+Do not post secrets, tokens, or `.env` contents publicly. Follow [SECURITY.md](SECURITY.md).

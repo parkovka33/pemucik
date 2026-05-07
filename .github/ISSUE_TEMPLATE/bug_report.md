@@ -1,26 +1,27 @@
 ---
 name: Bug report
-about: Report a problem with the workflow, prompts, or docs
+about: Report a problem with XenoVoice bot behavior, docs, or setup
 title: ''
 labels: ''
-assignees: KhazP
+assignees: ''
 
 ---
 
 **Describe the issue**
 
-A clear and concise description of the problem with the workflow, prompts, or docs.
+A clear and concise description of the problem.
 
 **Files / sections affected**
 
-- File(s): e.g. `part1-deepresearch.md`, `part3-tech-design-mvp.md`, `AGENTS.md`, etc.
-- Section / heading: e.g. “Step 3 – Choose technical approach”
+- File(s): e.g. `src/events/voiceStateUpdate.ts`, `README.md`, `docs/TROUBLESHOOTING.md`
+- Command / flow: e.g. `/setup`, `/panel`, temp room cleanup, command registration
 
-**Your setup**
+**Your environment**
 
-- AI tool: e.g. Cursor, Claude Code, Gemini CLI, ChatGPT, Cline, etc.
-- Model family: e.g. Claude Sonnet, Claude Opus, Gemini Pro, Gemini Flash, etc.
-- Environment: terminal / IDE / web app (AI Studio, Claude.ai, chatgpt.com, etc.)
+- Node.js version:
+- Discord server type: personal / community / other
+- Bot permissions in server:
+- Local environment: terminal / VPS / other
 
 **Steps to reproduce**
 
@@ -35,11 +36,11 @@ A clear and concise description of the unexpected behavior or confusing result.
 
 **What you expected instead**
 
-What outcome you expected from the template or workflow.
+What outcome you expected from XenoVoice.
 
-**Relevant prompts / snippets**
+**Relevant logs / snippets**
 
-Paste any prompts, instructions, or small snippets that are necessary to reproduce the issue.
+Paste any logs, error text, or small snippets that are necessary to reproduce the issue.
 
 **Additional context**
 

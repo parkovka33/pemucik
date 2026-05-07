@@ -1,47 +1,56 @@
 # Governance
 
-This document describes how decisions are made for the Vibe-Coding Prompt Template.
+This document describes how decisions are made for the XenoVoice repository.
 
 ## Scope
 
 Governance applies to:
-- Workflow documents (`README.md`, `part*.md`, `docs/*`)
-- Template artifacts (`templates/*`)
-- Community health files (`.github/*`)
+
+- bot code under `src/` and `scripts/`
+- operator and product docs under `README.md`, `docs/`, `agent_docs/`, `AGENTS.md`, and `MEMORY.md`
+- community health and workflow files under `.github/`
 
 ## Roles
 
 ### Maintainer
-- Reviews and merges pull requests
-- Curates roadmap direction
-- Resolves disputes and final tie-break decisions
+
+- reviews and merges pull requests
+- decides MVP scope and release timing
+- resolves disagreements when async discussion does not converge
 
 ### Contributor
-- Proposes changes through issues, discussions, and pull requests
-- Helps improve prompts, docs, examples, and workflows
+
+- proposes focused code or docs changes through issues and pull requests
+- respects current MVP scope and safety constraints
+- includes verification notes for behavior changes
 
 ## Decision-making model
 
-We use a pragmatic, lightweight model:
-- Small changes: maintainer discretion after normal PR review
-- Significant changes (structure, workflow contract, breaking guidance): discussed first in Discussions or an issue
-- Default approach: seek consensus, but avoid blocking progress indefinitely
+XenoVoice uses a lightweight, safety-first model:
+
+- small fixes: maintainer review and merge
+- larger changes: open an issue or draft PR first when behavior, docs surface, or workflows change materially
+- safety-sensitive work: cleanup, permissions, ownership, and deletion behavior should err on conservative review
 
 ## Change categories
 
-- **Editorial:** typo fixes, clarity improvements, link updates
-- **Operational:** workflow/action updates, policy docs, checklist updates
-- **Structural:** major prompt contract or template architecture changes
+- **Editorial:** copy fixes, clarification, broken links, translation cleanup
+- **Operational:** repo docs, issue templates, workflow files, listing preparation
+- **Behavioral:** slash commands, temp-room lifecycle, permissions, persistence, or support UX
 
-Structural changes should include:
-- Rationale
-- Migration notes (if behavior changes)
-- Updated references in docs
+Behavioral and safety-sensitive changes should include:
 
-## Release and maintenance cadence
+- the reason for the change
+- verification notes (`npm run lint`, `npm run build`, and manual Discord checks when relevant)
+- updates to operator-facing docs when behavior or support expectations changed
 
-- Primary cadence: monthly maintenance updates
-- Urgent fixes: shipped as needed (broken links, security clarifications, major regressions)
+## Release readiness
+
+Before broader outreach or bot-directory submission:
+
+- use [docs/RELEASE-CHECKLIST.md](../docs/RELEASE-CHECKLIST.md)
+- keep public docs aligned with the shipped MVP
+- state known constraints honestly rather than implying planned features already exist
 
 ## Conduct and enforcement
 
