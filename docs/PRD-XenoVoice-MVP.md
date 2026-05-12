@@ -29,7 +29,7 @@ Bring the MVP to a working, testable state.
 1–2 weeks.
 
 **Budget Constraint:**  
-Maximum $10/month for hosting and infrastructure.
+Budget: Up to $10/month for hosting and infrastructure.
 
 ---
 

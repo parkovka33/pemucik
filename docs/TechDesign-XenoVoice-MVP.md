@@ -28,7 +28,7 @@ The MVP goal is not to build the most advanced temporary voice bot. The goal is 
 
 ### Primary Recommendation: Node.js + TypeScript + discord.js v14 + SQLite + Small VPS
 
-This is the best stack for XenoVoice because it matches the PRD, your previous Discord bot experience, the $10/month hosting limit, and the need for AI agents to generate understandable code.
+This is the best stack for XenoVoice because it matches the PRD, your previous Discord bot experience, a hosting budget under $10/month, and the need for AI agents to generate understandable code.
 
 **Recommended stack:**
 

@@ -296,7 +296,7 @@ Research this project as if advising a beginner-friendly solo founder who wants 
    - Database
    - Hosting
    - Monitoring/logging
-   - Why this stack fits a $10/month MVP
+   - Why this stack fits under a $10/month budget for MVP deployment
 
 4. Discord API Feasibility Table
    - Feature
