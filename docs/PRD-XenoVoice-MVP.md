@@ -377,7 +377,7 @@ The MVP is successful if:
 - A user can create a temporary voice channel by joining the generator.
 - The creator can rename, lock/unlock, and set a user limit.
 - Empty temporary channels are deleted reliably.
-- The bot runs 24/7 within the $10/month budget.
+- The bot runs 24/7 within a budget of up to $10/month.
 - At least a few real servers use it for testing.
 
 ---
@@ -547,7 +547,7 @@ Options:
 
 Node.js with discord.js is a strong MVP path because Discord bots commonly use event-driven logic, and temporary voice channel creation depends heavily on reacting to Discord events. discord.js provides high-level objects for interactions, channels, permissions, voice states, and components, which makes it easier for an AI coding assistant to generate understandable code.
 
-SQLite is enough for MVP because XenoVoice only needs to store lightweight settings and temporary channel mappings. A single VPS can run the bot and keep a local SQLite file, which stays within the $10/month constraint.
+SQLite is enough for MVP because XenoVoice only needs to store lightweight settings and temporary channel mappings. A single VPS can run the bot and keep a local SQLite file, which stays within a budget of up to $10/month.
 
 ### Required Discord Permissions
 
@@ -637,11 +637,11 @@ Avoid JSON files for serious beta because they can corrupt more easily if multip
 | Website | None | $0 |
 | Monitoring | Free uptime monitor / basic logs | $0 |
 | Donation tool | Ko-fi / Patreon / Buy Me a Coffee | $0 base |
-| Total | VPS-only MVP | ~$4–$8/month |
+| Total | VPS-only MVP | under $8/month |
 
 ### Hard Constraints
 
-- Maximum $10/month.
+- Budget: up to $10/month maximum.
 - First working MVP in 1–2 weeks.
 - No website.
 - No custom domain.
