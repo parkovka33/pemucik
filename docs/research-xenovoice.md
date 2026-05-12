@@ -291,12 +291,13 @@ Research this project as if advising a beginner-friendly solo founder who wants 
    - MVP / Post-MVP / Later
    - Notes
 
-3. Recommended Tech Stack
-   - Language/library
-   - Database
-   - Hosting
-   - Monitoring/logging
-   - Why this stack fits under a $10/month budget for MVP deployment
+Recommended Tech Stack
+
+    Language/library
+    Database
+    Hosting
+    Monitoring/logging
+    Why this stack is cost-effective for MVP deployment (verify current pricing with providers)
 
 4. Discord API Feasibility Table
    - Feature
