@@ -13,11 +13,13 @@ import {
   MIN_TEMP_CHANNEL_BITRATE_KBPS,
 } from '../config/constants';
 import {
-  deleteTempChannelByChannelId,
   findTempChannelByOwner,
   findTempChannelByChannelId,
   updateTempChannelOwner,
 } from '../db/repositories/tempChannelsRepo';
+import {
+  deleteTrackedTempChannelArtifacts,
+} from './cleanupService';
 import {
   resolvePanelTargetByChannelId,
   type ResolvedPanelTarget,
@@ -263,7 +265,7 @@ export async function setVoiceChannelBitrate(
 
   await target.channel.edit({
     bitrate: bitrateBits,
-    reason: `XenoVoice: изменение битрейта комнаты пользователем ${actor.user.tag}`,
+    reason: `Noi: изменение битрейта комнаты пользователем ${actor.user.tag}`,
   });
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -317,7 +319,7 @@ export async function setVoiceChannelNsfw(
 
   await target.channel.setNSFW(
     enabled,
-    `XenoVoice: переключение NSFW комнаты пользователем ${actor.user.tag}`,
+    `Noi: переключение NSFW комнаты пользователем ${actor.user.tag}`,
   );
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -333,7 +335,7 @@ export async function setVoiceChannelRegion(
 
   await target.channel.setRTCRegion(
     rtcRegion,
-    `XenoVoice: изменение региона комнаты пользователем ${actor.user.tag}`,
+    `Noi: изменение региона комнаты пользователем ${actor.user.tag}`,
   );
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -350,7 +352,7 @@ export async function setVoiceChannelStatus(
 
   await actor.client.rest.put(`/channels/${target.channel.id}/voice-status`, {
     body: { status },
-    reason: `XenoVoice: изменение статуса комнаты пользователем ${actor.user.tag}`,
+    reason: `Noi: изменение статуса комнаты пользователем ${actor.user.tag}`,
   });
 
   return status;
@@ -456,7 +458,7 @@ export async function rejectVoiceAccess(
   });
 
   if ('user' in accessTarget && accessTarget.voice.channelId === target.channel.id) {
-    await accessTarget.voice.disconnect(`XenoVoice: отклонение доступа владельцем ${actor.user.tag}`);
+    await accessTarget.voice.disconnect(`Noi: отклонение доступа владельцем ${actor.user.tag}`);
   }
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -495,7 +497,7 @@ export async function kickVoiceMember(
     );
   }
 
-  await member.voice.disconnect(`XenoVoice: удаление участника владельцем ${actor.user.tag}`);
+  await member.voice.disconnect(`Noi: удаление участника владельцем ${actor.user.tag}`);
   return resolvePanelTargetByChannelId(actor, target.channel.id);
 }
 
@@ -511,7 +513,7 @@ export async function createVoiceChannelInvite(
     maxAge: 3_600,
     maxUses: 1,
     unique: true,
-    reason: `XenoVoice: инвайт в комнату создан пользователем ${actor.user.tag}`,
+    reason: `Noi: инвайт в комнату создан пользователем ${actor.user.tag}`,
   });
 
   try {
@@ -520,7 +522,7 @@ export async function createVoiceChannelInvite(
       : '';
 
     await member.send({
-      content: `🔔 <@${actor.id}> приглашает вас в голосовую комнату <#${target.channel.id}> на сервере **${target.channel.guild.name}**.\n\n${messagePrefix}${invite.url}`,
+      content: `<@${actor.id}> приглашает вас в голосовую комнату <#${target.channel.id}> на сервере **${target.channel.guild.name}**.\n\n${messagePrefix}${invite.url}`,
     });
 
     return {
@@ -546,12 +548,12 @@ export async function deleteVoiceChannel(
   if (!trackedRecord) {
     throw new VoiceControlServiceError(
       'REQUEST_TARGET_NOT_FOUND',
-      'Комната больше не подтверждается в базе данных XenoVoice и не будет удалена автоматически.',
+      'Комната больше не подтверждается в базе данных Noi и не будет удалена автоматически.',
     );
   }
 
-  await target.channel.delete(`XenoVoice: удаление комнаты пользователем ${actor.user.tag}`);
-  deleteTempChannelByChannelId(target.channel.id);
+  await target.channel.delete(`Noi: удаление комнаты пользователем ${actor.user.tag}`);
+  await deleteTrackedTempChannelArtifacts(actor.guild, target.channel.id);
 }
 
 export async function requestVoiceAccess(
@@ -570,7 +572,7 @@ export async function requestVoiceAccess(
   if (!record) {
     throw new VoiceControlServiceError(
       'REQUEST_TARGET_NOT_FOUND',
-      'У этого участника сейчас нет отслеживаемой временной комнаты XenoVoice.',
+      'У этого участника сейчас нет отслеживаемой временной комнаты Noi.',
     );
   }
 
@@ -584,7 +586,7 @@ export async function requestVoiceAccess(
   }
 
   await channel.send({
-    content: `🔔 <@${owner.id}>, <@${requester.id}> запросил(а) доступ к вашей комнате. Если хотите впустить участника, используйте \`/voice permit\` и выберите его в параметре \`mention\`.`,
+    content: `<@${owner.id}>, <@${requester.id}> запросил(а) доступ к вашей комнате. Если хотите впустить участника, используйте \`/voice permit\` и выберите его в параметре \`mention\`.`,
   });
 
   return {

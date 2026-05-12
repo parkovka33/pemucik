@@ -55,7 +55,7 @@ function buildLinkedTextChannelName(voiceChannel: VoiceChannel): string {
 }
 
 function buildLinkedTextTopic(voiceChannel: VoiceChannel): string {
-  return `Временный текстовый канал XenoVoice для голосовой комнаты ${voiceChannel.name} (${voiceChannel.id}).`;
+  return `Временный текстовый канал Noi для голосовой комнаты ${voiceChannel.name} (${voiceChannel.id}).`;
 }
 
 function getAdminRoleIds(channel: VoiceChannel): string[] {
@@ -187,7 +187,7 @@ async function syncLinkedTextChannelState(
       name: desiredName,
       topic: desiredTopic,
       ...(desiredParentId ? { parent: desiredParentId } : {}),
-      reason: `XenoVoice: синхронизация связанного текстового канала для комнаты ${voiceChannel.id}`,
+      reason: `Noi: синхронизация связанного текстового канала для комнаты ${voiceChannel.id}`,
     });
   }
 
@@ -250,7 +250,7 @@ async function createLinkedTextChannel(target: ResolvedPanelTarget): Promise<Tex
     parent: parentId,
     topic: buildLinkedTextTopic(target.channel),
     permissionOverwrites: buildInitialLinkedTextOverwrites(target),
-    reason: `XenoVoice: создание связанного текстового канала для комнаты ${target.channel.id}`,
+    reason: `Noi: создание связанного текстового канала для комнаты ${target.channel.id}`,
   });
 }
 
@@ -347,7 +347,7 @@ export async function deleteLinkedTempTextChannelForVoiceChannel(
     return 'missing_text_channel';
   }
 
-  await textChannel.delete(`XenoVoice: удаление связанного текстового канала для комнаты ${voiceChannelId}`);
+  await textChannel.delete(`Noi: удаление связанного текстового канала для комнаты ${voiceChannelId}`);
   deleteTempTextChannelByVoiceChannelId(voiceChannelId);
 
   return 'deleted';

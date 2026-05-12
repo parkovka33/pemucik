@@ -126,7 +126,7 @@ Stage 3 safety assertions:
 Only start the next code milestone after:
 - Stage 1, Stage 2, and Stage 3 all pass or have explicit documented failures.
 - Any newly found behavior gaps are written into `MEMORY.md`.
-- The next feature scope is still ordered as `/voice text` first, `/voice lfm` second, `/voice game` last unless a live-pass result changes that priority.
+- The next feature scope after the linked-text milestone remains `/voice lfm` unless a live-pass result changes that priority.
 
 ## Linked Text Live Pass
 Use this checklist specifically for the new `/voice text` milestone after local migration, build, test, and command registration are already green.
@@ -154,6 +154,34 @@ Use this checklist specifically for the new `/voice text` milestone after local 
 - After the first `/voice text`, exactly one row exists for the tracked `voice_channel_id`.
 - After manual deletion plus recreation, the same `voice_channel_id` points to the new `text_channel_id`.
 - After voice-room cleanup, no row remains for that `voice_channel_id`.
+
+## Local Piper Playback Checks
+Use this before the eventual live Discord pass when working on the `/voice tts` runtime milestone.
+
+### Preflight
+1. Ensure `PIPER_COMMAND` resolves on the host or that plain `piper` is available on `PATH`.
+2. Ensure the curated model env vars used by the selected preset exist: `PIPER_MODEL_DEFAULT`, `PIPER_MODEL_RU_ALT`, `PIPER_MODEL_EN_DEFAULT`.
+3. Ensure FFmpeg is available on `PATH` for Discord voice playback.
+4. Run the focused TTS unit tests plus `npm run lint` and `npm run build`.
+
+### Local Runtime Assertions
+- Accepted linked-temp-text messages produce `voice_tts_message_ready` and then `voice_tts_message_queued`.
+- Missing Piper model env vars or an unavailable Piper binary log `voice_tts_runtime_unavailable` or `voice_tts_playback_failed` without crashing the bot.
+- Burst traffic in one tracked room respects the bounded room queue and logs `voice_tts_queue_overflow` instead of growing unbounded memory.
+- Two tracked rooms in the same guild can enqueue work without crashing; playback is serialized at the guild level because one bot can hold only one active voice connection per guild.
+- Stopping the process disconnects the playback runtime cleanly.
+
+## `/voice tts` Future Live Pass
+Run this now that the local cleanup/recovery milestone is green and the host has Piper plus FFmpeg available.
+
+### `/voice tts` Checks
+- `/voice tts enabled:true` succeeds only for the temp-room owner or an admin and only after `/voice text` exists.
+- Messages in the linked temp text channel are read aloud in the matching tracked temp voice room.
+- Messages in unrelated text channels remain ignored.
+- `/voice tts enabled:false` stops future playback for that room.
+- `/voice tts voice:<preset>` affects later queued messages for that room.
+- Overflow traffic logs safely and does not crash the bot.
+- If Piper runtime config is missing, the bot stays online and logs the failure clearly.
 
 ## Safety-Focused Regression Checks
 Always verify these after touching cleanup, permissions, or ownership logic:

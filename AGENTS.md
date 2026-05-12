@@ -62,7 +62,7 @@ Do NOT modify these areas without explicit human approval:
 ## What NOT To Do
 - Do NOT delete files without explicit confirmation.
 - Do NOT modify database schemas or cleanup safety rules without a backup plan.
-- Do NOT add more feature branches while the current post-MVP command surface still has unverified live behavior or stale operator docs.
+- Do NOT add more feature branches while the current post-MVP command surface still has unverified live behavior or stale operator docs. The only currently approved exception is a narrow local Piper-based `/voice tts` slice tied strictly to tracked temp rooms and linked temp text channels.
 - Do NOT skip lint/build/manual verification because a change looks simple.
 - Do NOT bypass failing checks or hide failures with placeholder logic.
 - Do NOT add a website, premium logic, or broad new product surfaces while setup, cleanup, permissions, and current room controls still need stabilization.

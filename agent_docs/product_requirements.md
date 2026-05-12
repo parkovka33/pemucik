@@ -111,6 +111,7 @@ Community Discord server admins and owners who manage active servers where membe
 - Reject user or role
 - Request to join locked room
 - Temporary text channel
+- Linked text-to-speech for tracked temp rooms through a narrow local Piper-based room-level toggle
 - Channel status message
 - Bitrate controls
 - Ghost / unghost visibility
@@ -171,6 +172,7 @@ The MVP is successful if:
 
 ## Remaining Post-MVP Command Goals
 - `/voice status` — set a room status message
+- `/voice tts` — enable or disable room-level text-to-speech for a tracked linked temp text channel and choose a curated local Piper voice preset
 - `/settings` — admin views or updates guild settings through a clearer dedicated surface
 - `/language` — later, server language selection
 - `/setup default` — a richer dedicated admin flow for setup defaults if `/setup` itself becomes too crowded

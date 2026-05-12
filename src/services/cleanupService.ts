@@ -6,6 +6,7 @@ import {
   findTempChannelByChannelId,
 } from '../db/repositories/tempChannelsRepo';
 import { deleteLinkedTempTextChannelForVoiceChannel } from './tempTextChannelService';
+import { cleanupTempTtsPlaybackForVoiceChannel } from './ttsPlaybackService';
 
 export type CleanupTempChannelResult =
   | 'not_tracked'
@@ -20,6 +21,19 @@ function delay(milliseconds: number): Promise<void> {
   });
 }
 
+function isUnknownChannelError(error: unknown): error is { code: number } {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 10003;
+}
+
+export async function deleteTrackedTempChannelArtifacts(guild: Guild, channelId: string): Promise<void> {
+  try {
+    await deleteLinkedTempTextChannelForVoiceChannel(guild, channelId);
+  } finally {
+    await cleanupTempTtsPlaybackForVoiceChannel(guild.id, channelId);
+    deleteTempChannelByChannelId(channelId);
+  }
+}
+
 export async function cleanupTrackedTempChannelIfEmpty(
   guild: Guild,
   channelId: string,
@@ -32,14 +46,18 @@ export async function cleanupTrackedTempChannelIfEmpty(
 
   await delay(TEMP_CHANNEL_CLEANUP_DELAY_MS);
 
-  const channel = await guild.channels.fetch(channelId);
+  let channel = null;
+
+  try {
+    channel = await guild.channels.fetch(channelId);
+  } catch (error) {
+    if (!isUnknownChannelError(error)) {
+      throw error;
+    }
+  }
 
   if (!channel) {
-    try {
-      await deleteLinkedTempTextChannelForVoiceChannel(guild, channelId);
-    } finally {
-      deleteTempChannelByChannelId(channelId);
-    }
+    await deleteTrackedTempChannelArtifacts(guild, channelId);
 
     return 'missing_channel';
   }
@@ -54,13 +72,9 @@ export async function cleanupTrackedTempChannelIfEmpty(
     return 'not_empty';
   }
 
-  await voiceChannel.delete('XenoVoice: удаление пустой временной комнаты');
+  await voiceChannel.delete('Noi: удаление пустой временной комнаты');
 
-  try {
-    await deleteLinkedTempTextChannelForVoiceChannel(guild, channelId);
-  } finally {
-    deleteTempChannelByChannelId(channelId);
-  }
+  await deleteTrackedTempChannelArtifacts(guild, channelId);
 
   return 'deleted';
 }

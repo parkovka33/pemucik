@@ -10,7 +10,7 @@ import { safeReply } from '../utils/safeReply';
 export const resetCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('reset')
-    .setDescription('Сбросить выбранные настройки XenoVoice до безопасных значений по умолчанию.')
+    .setDescription('Сбросить выбранные настройки Noi до безопасных значений по умолчанию.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((subcommand) =>
       subcommand
@@ -21,6 +21,14 @@ export const resetCommand: AppCommand = {
     if (!interaction.inGuild() || !interaction.guild) {
       await safeReply(interaction, {
         content: 'Эту команду можно использовать только внутри сервера.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await safeReply(interaction, {
+        content: 'Эта команда доступна только администраторам сервера.',
         ephemeral: true,
       });
       return;
@@ -45,7 +53,7 @@ export const resetCommand: AppCommand = {
     });
 
     await safeReply(interaction, {
-      content: 'Стандартный битрейт новых временных комнат сброшен. Теперь XenoVoice снова будет использовать стандарт Discord для новых комнат.',
+      content: 'Стандартный битрейт новых временных комнат сброшен. Теперь Noi снова будет использовать стандарт Discord для новых комнат.',
       ephemeral: true,
     });
   },

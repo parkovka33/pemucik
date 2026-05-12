@@ -98,7 +98,7 @@ export async function handlePersistentInterfaceInteraction(
         });
 
         await safeReply(interaction, {
-          content: 'Временная комната удалена и убрана из базы XenoVoice.',
+          content: 'Временная комната удалена и убрана из базы Noi.',
           ephemeral: true,
         });
         return;
@@ -397,7 +397,7 @@ export async function handlePersistentInterfaceInteraction(
     }, error);
 
     await safeReply(interaction, {
-      content: 'Во время обработки Xenovoice Interface произошла ошибка.',
+      content: 'Во время обработки Noi Interface произошла ошибка.',
       ephemeral: true,
     });
   }

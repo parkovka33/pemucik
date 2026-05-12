@@ -1,14 +1,14 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
-import { APP_COLOR } from '../config/constants';
 import { PanelServiceError, buildPanelComponents, buildPanelEmbed, resolvePanelTarget } from '../services/panelService';
 import type { AppCommand } from '../types';
+import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 import { safeReply } from '../utils/safeReply';
 
 export const panelCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('panel')
-    .setDescription('Открыть панель управления комнатой XenoVoice.'),
+    .setDescription('Открыть панель управления комнатой Noi.'),
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild || !interaction.member) {
       await safeReply(interaction, {
@@ -21,9 +21,10 @@ export const panelCommand: AppCommand = {
     try {
       const member = await interaction.guild.members.fetch(interaction.user.id);
       const target = await resolvePanelTarget(member);
+      const embed = await buildPanelEmbed(target);
 
       await safeReply(interaction, {
-        embeds: [buildPanelEmbed(target)],
+        embeds: [embed],
         components: buildPanelComponents(target),
         ephemeral: true,
       });
@@ -50,10 +51,9 @@ export const panelCommand: AppCommand = {
         userId: interaction.user.id,
       }, error);
 
-      const embed = new EmbedBuilder()
-        .setColor(APP_COLOR)
-        .setTitle('Панель XenoVoice временно недоступна')
-        .setDescription('При открытии панели управления произошла ошибка.');
+      const embed = await applyBotAvatarEmbedColor(new EmbedBuilder()
+        .setTitle('Панель Noi временно недоступна')
+        .setDescription('При открытии панели управления произошла ошибка.'), interaction.client);
 
       await safeReply(interaction, { embeds: [embed], ephemeral: true });
     }

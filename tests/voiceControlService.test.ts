@@ -10,9 +10,14 @@ import {
 
 import { DEFAULT_NAME_TEMPLATE } from '../src/config/constants';
 import { upsertGuildSettings } from '../src/db/repositories/guildSettingsRepo';
-import { findTempChannelByChannelId, insertTempChannel } from '../src/db/repositories/tempChannelsRepo';
-import { lockPanelChannel, unlockPanelChannel } from '../src/services/panelService';
 import {
+  findTempTextChannelByVoiceChannelId,
+  upsertTempTextChannel,
+} from '../src/db/repositories/tempTextChannelsRepo';
+import { findTempChannelByChannelId, insertTempChannel } from '../src/db/repositories/tempChannelsRepo';
+import { claimPanelChannel, lockPanelChannel, unlockPanelChannel } from '../src/services/panelService';
+import {
+  deleteVoiceChannel,
   VoiceControlServiceError,
   ghostVoiceChannel,
   rejectVoiceAccess,
@@ -222,7 +227,7 @@ test('unlockPanelChannel clears only the managed everyone Connect deny and unloc
   }
 });
 
-test('ghostVoiceChannel and unghostVoiceChannel only touch visibility permissions needed for XenoVoice', async () => {
+test('ghostVoiceChannel and unghostVoiceChannel only touch visibility permissions needed for Noi', async () => {
   const { cleanup } = setupTestDatabase();
 
   try {
@@ -309,7 +314,7 @@ test('setVoiceChannelStatus sends the raw REST update when bot permissions are s
     {
       path: '/channels/temp-voice/voice-status',
       body: { status: 'Ready to raid' },
-      reason: 'XenoVoice: изменение статуса комнаты пользователем owner#0001',
+      reason: 'Noi: изменение статуса комнаты пользователем owner#0001',
     },
   ]);
 });
@@ -371,4 +376,132 @@ test('rejectVoiceAccess blocks dangerous role targets before mutating channel pe
       error instanceof VoiceControlServiceError
       && error.code === 'REJECT_ADMIN_ROLE_NOT_ALLOWED',
   );
+});
+
+test('claimPanelChannel grants managed visibility to the claimant in a ghosted room', async () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedTrackedRoom();
+
+    const { guild, everyoneRoleId } = createGuildContext();
+    const claimantPermissions = new PermissionsBitField([]);
+    const overwrites = createPermissionOverwriteManager([
+      createOverwrite(everyoneRoleId, {
+        deny: [PermissionFlagsBits.ViewChannel],
+      }),
+    ]);
+    const claimant = {
+      id: 'claimant-user',
+      permissions: claimantPermissions,
+      guild: {
+        id: 'guild-1',
+        channels: {
+          fetch: async (channelId: string) => {
+            assert.equal(channelId, 'temp-voice');
+            return channel;
+          },
+        },
+      },
+      voice: { channelId: 'temp-voice' },
+      user: { tag: 'claimant#0001' },
+    };
+    const channel = {
+      id: 'temp-voice',
+      type: ChannelType.GuildVoice,
+      guild,
+      permissionOverwrites: overwrites,
+      members: new Collection([[claimant.id, claimant]]),
+    };
+    const target = {
+      record: {
+        channelId: 'temp-voice',
+        guildId: 'guild-1',
+        ownerUserId: 'owner-user',
+        categoryId: 'category-1',
+        createdAt: '2026-05-06T00:00:00Z',
+        lastActiveAt: '2026-05-06T00:00:00Z',
+        isLocked: false,
+        userLimit: 0,
+      },
+      channel,
+      actorCanManage: false,
+      actorCanClaimOwnership: true,
+      accessMode: 'claim',
+    };
+
+    const result = await claimPanelChannel(target as never, claimant as never);
+
+    assert.equal(result.record.ownerUserId, 'claimant-user');
+    assert.equal(findTempChannelByChannelId('temp-voice')?.ownerUserId, 'claimant-user');
+    assert.deepEqual(overwrites.editCalls, [
+      { id: 'claimant-user', patch: { ViewChannel: true } },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('deleteVoiceChannel removes linked temp text artifacts after manual room deletion', async () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedTrackedRoom();
+    upsertTempTextChannel({
+      textChannelId: 'text-1',
+      voiceChannelId: 'temp-voice',
+      guildId: 'guild-1',
+    });
+
+    const deletedReasons: string[] = [];
+    const textChannel = {
+      id: 'text-1',
+      type: ChannelType.GuildText,
+      delete: async (reason: string) => {
+        deletedReasons.push(reason);
+      },
+    };
+    const guild = {
+      id: 'guild-1',
+      channels: {
+        fetch: async (channelId: string) => {
+          assert.equal(channelId, 'text-1');
+          return textChannel;
+        },
+      },
+    };
+    const voiceDeleteReasons: string[] = [];
+    const voiceChannel = {
+      id: 'temp-voice',
+      guild,
+      delete: async (reason: string) => {
+        voiceDeleteReasons.push(reason);
+      },
+    };
+
+    await deleteVoiceChannel({
+      record: {
+        channelId: 'temp-voice',
+        guildId: 'guild-1',
+        ownerUserId: 'owner-user',
+        categoryId: 'category-1',
+        createdAt: '2026-05-06T00:00:00Z',
+        lastActiveAt: '2026-05-06T00:00:00Z',
+        isLocked: false,
+        userLimit: 0,
+      },
+      channel: voiceChannel,
+      actorCanManage: true,
+    } as never, {
+      guild,
+      user: { tag: 'owner#0001' },
+    } as never);
+
+    assert.deepEqual(voiceDeleteReasons, ['Noi: удаление комнаты пользователем owner#0001']);
+    assert.deepEqual(deletedReasons, ['Noi: удаление связанного текстового канала для комнаты temp-voice']);
+    assert.equal(findTempChannelByChannelId('temp-voice'), null);
+    assert.equal(findTempTextChannelByVoiceChannelId('temp-voice'), null);
+  } finally {
+    cleanup();
+  }
 });

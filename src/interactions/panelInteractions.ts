@@ -70,8 +70,9 @@ export async function handlePanelInteraction(
       }
 
       if (parsed.action === 'refresh') {
+        const embed = await buildPanelEmbed(target);
         await interaction.update({
-          embeds: [buildPanelEmbed(target)],
+          embeds: [embed],
           components: buildPanelComponents(target),
         });
         return;
@@ -85,8 +86,9 @@ export async function handlePanelInteraction(
           userId: member.id,
           channelId: target.channel.id,
         });
+        const embed = await buildPanelEmbed(updatedTarget);
         await interaction.update({
-          embeds: [buildPanelEmbed(updatedTarget)],
+          embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
         return;
@@ -101,8 +103,9 @@ export async function handlePanelInteraction(
           userId: member.id,
           channelId: target.channel.id,
         });
+        const embed = await buildPanelEmbed(updatedTarget);
         await interaction.update({
-          embeds: [buildPanelEmbed(updatedTarget)],
+          embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
         return;
@@ -117,8 +120,9 @@ export async function handlePanelInteraction(
           userId: member.id,
           channelId: target.channel.id,
         });
+        const embed = await buildPanelEmbed(updatedTarget);
         await interaction.update({
-          embeds: [buildPanelEmbed(updatedTarget)],
+          embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
       }
@@ -140,8 +144,9 @@ export async function handlePanelInteraction(
         userLimit: selectedLimit,
       });
 
+      const embed = await buildPanelEmbed(updatedTarget);
       await interaction.update({
-        embeds: [buildPanelEmbed(updatedTarget)],
+        embeds: [embed],
         components: buildPanelComponents(updatedTarget),
       });
       return;
@@ -160,8 +165,9 @@ export async function handlePanelInteraction(
         channelId: target.channel.id,
       });
 
+      const embed = await buildPanelEmbed(updatedTarget);
       await interaction.reply({
-        embeds: [buildPanelEmbed(updatedTarget)],
+        embeds: [embed],
         components: buildPanelComponents(updatedTarget),
         ephemeral: true,
       });
@@ -181,7 +187,7 @@ export async function handlePanelInteraction(
 
     if (isDiscordMissingPermissionsError(error)) {
       await safeReply(interaction, {
-        content: 'У XenoVoice не хватает Discord-прав, чтобы изменить доступ к комнате. Выдайте боту `Administrator` или права на изменение переопределений прав канала, затем попробуйте снова.',
+        content: 'У Noi не хватает прав, чтобы изменить доступ к комнате. Выдайте боту `Administrator` или права на изменение переопределений прав канала, затем попробуйте снова.',
         ephemeral: true,
       });
       return;

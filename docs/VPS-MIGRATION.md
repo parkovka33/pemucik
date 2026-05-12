@@ -168,4 +168,4 @@ Run these checks after startup:
 5. confirm existing behavior still matches the restored database state
 6. leave the room and confirm cleanup still works
 
-For the broader verification loop, use [agent_docs/testing.md](/home/xenovoicik/xenovoice/agent_docs/testing.md).
+For the broader verification loop, use [agent_docs/testing.md](../agent_docs/testing.md).

@@ -48,6 +48,23 @@ ON temp_text_channels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_temp_text_channels_voice_channel_id
 ON temp_text_channels(voice_channel_id);
 
+CREATE TABLE IF NOT EXISTS temp_tts_settings (
+  voice_channel_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  voice_key TEXT NOT NULL DEFAULT "default",
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (guild_id) REFERENCES guild_settings(guild_id),
+  FOREIGN KEY (voice_channel_id) REFERENCES temp_channels(channel_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_temp_tts_settings_guild_id
+ON temp_tts_settings(guild_id);
+
+CREATE INDEX IF NOT EXISTS idx_temp_tts_settings_voice_channel_id
+ON temp_tts_settings(voice_channel_id);
+
 CREATE TABLE IF NOT EXISTS user_cooldowns (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,

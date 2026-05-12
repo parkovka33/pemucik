@@ -1,43 +1,28 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
-import { APP_COLOR } from '../config/constants';
+import { DEFAULT_DONATION_URL } from '../config/constants';
 import { getEnv } from '../config/env';
 import type { AppCommand } from '../types';
+import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 import { safeReply } from '../utils/safeReply';
 
 export const supportCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('support')
-    .setDescription('Показать ссылки на поддержку и донат.'),
+    .setDescription('Показать ссылки на донатттттттттттт.'),
   async execute(interaction) {
     const env = getEnv();
+    const donationUrl = env.donationUrl ?? DEFAULT_DONATION_URL;
 
-    const embed = new EmbedBuilder()
-      .setColor(APP_COLOR)
-      .setTitle('Поддержка XenoVoice')
-      .setDescription('XenoVoice сейчас находится на стадии небольшой беты. Поддержка остаётся дружелюбной и лёгкой, без платного доступа к базовой помощи.')
+    const embed = await applyBotAvatarEmbedColor(new EmbedBuilder()
+      .setTitle('Поддержка Noi')
+      .setDescription('Noi сейчас находится на стадии небольшой беты (наверное).')
       .addFields(
         {
-          name: 'Где получить помощь',
-          value: env.supportServerUrl
-            ? `Присоединяйтесь к серверу поддержки: ${env.supportServerUrl}`
-            : 'Ссылка на сервер поддержки пока не настроена. На данный момент попросите администратора бота собрать детали проблемы и контекст конфигурации перед обращением.',
-        },
-        {
-          name: 'Перед тем как сообщить о проблеме',
-          value: [
-            'Отметьте, какая именно команда или какое действие в панели не сработало.',
-            'Укажите, есть ли у бота права `Manage Channels` или `Administrator`.',
-            'Если проблема связана с временной комнатой, добавьте название сервера и опишите, что вы ожидали увидеть.',
-          ].join('\n'),
-        },
-        {
           name: 'Поддержать проект',
-          value: env.donationUrl
-            ? `Если XenoVoice помогает вашему серверу, поддержать разработку можно здесь: ${env.donationUrl}`
-            : 'Ссылка на донат пока не настроена. Бот остаётся полностью полезным и без неё.',
+          value: `Если этот говнобот Вам понравился, то поддержать разработку можно здесь: ${donationUrl}`,
         },
-      );
+      ), interaction.client);
 
     await safeReply(interaction, { embeds: [embed], ephemeral: true });
   },

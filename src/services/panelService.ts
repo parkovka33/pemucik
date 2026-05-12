@@ -13,7 +13,7 @@ import {
   type VoiceChannel,
 } from 'discord.js';
 
-import { APP_COLOR, PANEL_CUSTOM_ID_PREFIX, PANEL_RENAME_INPUT_ID } from '../config/constants';
+import { PANEL_CUSTOM_ID_PREFIX, PANEL_RENAME_INPUT_ID } from '../config/constants';
 import {
   findTempChannelByChannelId,
   findTempChannelByOwner,
@@ -23,6 +23,7 @@ import {
 } from '../db/repositories/tempChannelsRepo';
 import { getRenameCooldownRemainingSeconds, startRenameCooldown } from './cooldownService';
 import { syncLinkedTempTextChannelForTarget } from './tempTextChannelService';
+import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 
 import type { TempChannelRecord } from '../types';
 
@@ -168,15 +169,20 @@ function assertManageAccess(target: ResolvedPanelTarget): void {
   );
 }
 
-async function ensureConnectPermissionIfNeutral(channel: VoiceChannel, overwriteId: string): Promise<void> {
+async function ensurePermissionIfNeutral(
+  channel: VoiceChannel,
+  overwriteId: string,
+  permission: 'Connect' | 'ViewChannel',
+): Promise<void> {
   const overwrite = channel.permissionOverwrites.cache.get(overwriteId);
+  const permissionBit = PermissionFlagsBits[permission];
 
-  if (overwrite?.allow.has(PermissionFlagsBits.Connect) || overwrite?.deny.has(PermissionFlagsBits.Connect)) {
+  if (overwrite?.allow.has(permissionBit) || overwrite?.deny.has(permissionBit)) {
     return;
   }
 
   await channel.permissionOverwrites.edit(overwriteId, {
-    Connect: true,
+    [permission]: true,
   });
 }
 
@@ -238,7 +244,7 @@ export async function resolvePanelTargetByChannelId(
   if (!record) {
     throw new PanelServiceError(
       'TEMP_CHANNEL_NOT_FOUND',
-      'Эта комната не отслеживается как временная комната XenoVoice.',
+      'Эта комната не отслеживается как временная комната Noi.',
     );
   }
 
@@ -246,7 +252,7 @@ export async function resolvePanelTargetByChannelId(
   return buildResolvedTarget(record, channel, member);
 }
 
-export function buildPanelEmbed(target: ResolvedPanelTarget): EmbedBuilder {
+export async function buildPanelEmbed(target: ResolvedPanelTarget): Promise<EmbedBuilder> {
   const accessModeLabel = target.accessMode === 'admin'
     ? 'Доступ администратора'
     : target.accessMode === 'claim'
@@ -256,9 +262,8 @@ export function buildPanelEmbed(target: ResolvedPanelTarget): EmbedBuilder {
     ? 'Используйте элементы ниже, чтобы управлять своей временной голосовой комнатой.'
     : 'Владелец комнаты сейчас не находится внутри неё. Вы можете забрать владение и после этого управлять комнатой.';
 
-  return new EmbedBuilder()
-    .setColor(APP_COLOR)
-    .setTitle('🎛️ Панель управления XenoVoice')
+  const embed = new EmbedBuilder()
+    .setTitle('Панель управления Noi')
     .setDescription(description)
     .addFields(
       {
@@ -306,6 +311,8 @@ export function buildPanelEmbed(target: ResolvedPanelTarget): EmbedBuilder {
         value: accessModeLabel,
       },
     );
+
+  return applyBotAvatarEmbedColor(embed, target.channel.client);
 }
 
 export function buildPanelComponents(
@@ -407,7 +414,7 @@ export async function renamePanelChannel(
   }
 
   startRenameCooldown(actor.guild.id, actor.id);
-  await target.channel.edit({ name, reason: `XenoVoice: переименование комнаты пользователем ${actor.user.tag}` });
+  await target.channel.edit({ name, reason: `Noi: переименование комнаты пользователем ${actor.user.tag}` });
   const updatedTarget = await resolvePanelTargetByChannelId(actor, target.channel.id);
   await syncLinkedTempTextChannelForTarget(updatedTarget);
 
@@ -425,10 +432,10 @@ export async function lockPanelChannel(target: ResolvedPanelTarget): Promise<Res
     Connect: false,
   });
 
-  await ensureConnectPermissionIfNeutral(target.channel, ownerId);
+  await ensurePermissionIfNeutral(target.channel, ownerId, 'Connect');
 
   if (botId) {
-    await ensureConnectPermissionIfNeutral(target.channel, botId);
+    await ensurePermissionIfNeutral(target.channel, botId, 'Connect');
   }
 
   const adminRoles = target.channel.guild.roles.cache.filter((role) =>
@@ -439,7 +446,7 @@ export async function lockPanelChannel(target: ResolvedPanelTarget): Promise<Res
   );
 
   for (const role of adminRoles.values()) {
-    await ensureConnectPermissionIfNeutral(target.channel, role.id);
+    await ensurePermissionIfNeutral(target.channel, role.id, 'Connect');
   }
 
   updateTempChannelLockState(target.channel.id, true);
@@ -485,7 +492,7 @@ export async function setPanelChannelUserLimit(
 
   await target.channel.edit({
     userLimit: limit,
-    reason: `XenoVoice: изменение лимита комнаты пользователем ${actor.user.tag}`,
+    reason: `Noi: изменение лимита комнаты пользователем ${actor.user.tag}`,
   });
 
   updateTempChannelUserLimit(target.channel.id, limit);
@@ -513,7 +520,11 @@ export async function claimPanelChannel(
   }
 
   if (latestTarget.record.isLocked) {
-    await ensureConnectPermissionIfNeutral(latestTarget.channel, actor.id);
+    await ensurePermissionIfNeutral(latestTarget.channel, actor.id, 'Connect');
+  }
+
+  if (isChannelGhosted(latestTarget.channel)) {
+    await ensurePermissionIfNeutral(latestTarget.channel, actor.id, 'ViewChannel');
   }
 
   updateTempChannelOwner(latestTarget.channel.id, actor.id);

@@ -7,12 +7,12 @@ import {
 } from 'discord.js';
 
 import {
-  APP_COLOR,
   DEFAULT_CATEGORY_NAME,
   DEFAULT_GENERATOR_CHANNEL_NAME,
 } from '../config/constants';
 import { SetupServiceError, runSetup } from '../services/setupService';
 import type { AppCommand, TempChannelPermissionSource } from '../types';
+import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 import { safeReply } from '../utils/safeReply';
 
 const PERMISSION_SOURCE_LABELS: Record<TempChannelPermissionSource, string> = {
@@ -23,7 +23,7 @@ const PERMISSION_SOURCE_LABELS: Record<TempChannelPermissionSource, string> = {
 export const setupCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('Подготовить сервер для временных голосовых комнат XenoVoice.')
+    .setDescription('Подготовить сервер для временных голосовых комнат Noi.')
     .addBooleanOption((option) =>
       option
         .setName('editable')
@@ -49,6 +49,14 @@ export const setupCommand: AppCommand = {
     if (!interaction.inGuild() || !interaction.guild) {
       await safeReply(interaction, {
         content: 'Эту команду можно использовать только внутри сервера.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await safeReply(interaction, {
+        content: 'Эта команда доступна только администраторам сервера.',
         ephemeral: true,
       });
       return;
@@ -82,9 +90,8 @@ export const setupCommand: AppCommand = {
         permissionSource: result.settings.permissionSource,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor(APP_COLOR)
-        .setTitle('✅ XenoVoice готов к работе!')
+      const embed = await applyBotAvatarEmbedColor(new EmbedBuilder()
+        .setTitle('Noi готов к работе')
         .setDescription('Участники теперь могут заходить в канал-генератор и автоматически получать свою временную голосовую комнату.')
         .addFields(
           {
@@ -111,7 +118,7 @@ export const setupCommand: AppCommand = {
               `Permission: ${PERMISSION_SOURCE_LABELS[result.settings.permissionSource]}`,
             ].join('\n'),
           },
-        );
+        ), interaction.client);
 
       await safeReply(interaction, { embeds: [embed], ephemeral: true });
     } catch (error) {

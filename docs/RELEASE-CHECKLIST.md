@@ -4,9 +4,9 @@ Use this checklist before calling XenoVoice ready for public bot-directory submi
 
 ## 1. Repository readiness
 
-- [ ] [README.md](/home/xenovoicik/xenovoice/README.md) matches the actual shipped MVP behavior.
-- [ ] [docs/LISTING.md](/home/xenovoicik/xenovoice/docs/LISTING.md) does not promise post-MVP features.
-- [ ] [docs/QUICKSTART.md](/home/xenovoicik/xenovoice/docs/QUICKSTART.md) and [docs/TROUBLESHOOTING.md](/home/xenovoicik/xenovoice/docs/TROUBLESHOOTING.md) reflect the current setup and support flow.
+- [ ] [README.md](../README.md) matches the actual shipped MVP behavior.
+- [ ] [docs/LISTING.md](./LISTING.md) does not promise post-MVP features.
+- [ ] [docs/QUICKSTART.md](./QUICKSTART.md) and [docs/TROUBLESHOOTING.md](./TROUBLESHOOTING.md) reflect the current setup and support flow.
 - [ ] `.github` FAQ/support/issue templates are aligned with XenoVoice rather than the old repo template.
 - [ ] Any remaining template-era files are either cleaned up or consciously left for a later pass.
 
@@ -19,7 +19,7 @@ Use this checklist before calling XenoVoice ready for public bot-directory submi
 
 ## 3. Manual Discord verification
 
-Run the real Discord loop from [agent_docs/testing.md](/home/xenovoicik/xenovoice/agent_docs/testing.md).
+Run the real Discord loop from [agent_docs/testing.md](../agent_docs/testing.md).
 
 - [ ] `/setup` creates or reuses the XenoVoice category and generator channel
 - [ ] joining the generator creates a tracked temp room
@@ -39,12 +39,12 @@ Run the real Discord loop from [agent_docs/testing.md](/home/xenovoicik/xenovoic
 - [ ] `/help` copy is accurate for the current product surface
 - [ ] `/support` behaves correctly with configured links
 - [ ] `/support` still has acceptable fallback copy when support or donation URLs are not configured
-- [ ] known permission failure modes are documented in [docs/TROUBLESHOOTING.md](/home/xenovoicik/xenovoice/docs/TROUBLESHOOTING.md)
+- [ ] known permission failure modes are documented in [docs/TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 ## 5. Listing readiness
 
-- [ ] choose one short description from [docs/LISTING.md](/home/xenovoicik/xenovoice/docs/LISTING.md)
-- [ ] choose one long description from [docs/LISTING.md](/home/xenovoicik/xenovoice/docs/LISTING.md)
+- [ ] choose one short description from [docs/LISTING.md](./LISTING.md)
+- [ ] choose one long description from [docs/LISTING.md](./LISTING.md)
 - [ ] verify listing bullets do not mention unsupported features
 - [ ] verify current language expectations are honest
 - [ ] verify one-generator-per-server MVP limitation is not hidden if the bot list needs that context

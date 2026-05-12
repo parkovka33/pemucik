@@ -164,13 +164,13 @@ export function registerVoiceStateUpdateHandler(client: Client, logger: Logger):
 
       try {
         if (newState.member.voice.channelId !== settings.generatorChannelId) {
-          await tempChannel.delete('XenoVoice: удаление временной комнаты после выхода пользователя из генератора до переноса');
+          await tempChannel.delete('Noi: удаление временной комнаты после выхода пользователя из генератора до переноса');
           return;
         }
 
         await moveMemberToChannel(newState.member, tempChannel);
       } catch (error) {
-        await tempChannel.delete('XenoVoice: удаление временной комнаты после неудачного переноса пользователя');
+        await tempChannel.delete('Noi: удаление временной комнаты после неудачного переноса пользователя');
         throw error;
       }
 

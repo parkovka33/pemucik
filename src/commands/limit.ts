@@ -35,6 +35,7 @@ export const limitCommand: AppCommand = {
       const target = await resolvePanelTarget(member);
       const limit = interaction.options.getInteger('value', true);
       const updatedTarget = await setPanelChannelUserLimit(target, limit, member);
+      const embed = await buildPanelEmbed(updatedTarget);
 
       context.logger.info({
         event: 'limit_command_used',
@@ -45,7 +46,7 @@ export const limitCommand: AppCommand = {
       });
 
       await safeReply(interaction, {
-        embeds: [buildPanelEmbed(updatedTarget)],
+        embeds: [embed],
         components: buildPanelComponents(updatedTarget),
         ephemeral: true,
       });

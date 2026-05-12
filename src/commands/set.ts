@@ -12,7 +12,7 @@ import { getAvailableBitrateChoices, respondWithBitrateAutocomplete } from './vo
 export const setCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('set')
-    .setDescription('Административные настройки XenoVoice.')
+    .setDescription('Административные настройки Noi.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((subcommand) =>
       subcommand
@@ -44,6 +44,14 @@ export const setCommand: AppCommand = {
     if (!interaction.inGuild() || !interaction.guild) {
       await safeReply(interaction, {
         content: 'Эту команду можно использовать только внутри сервера.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await safeReply(interaction, {
+        content: 'Эта команда доступна только администраторам сервера.',
         ephemeral: true,
       });
       return;

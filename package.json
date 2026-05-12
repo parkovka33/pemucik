@@ -10,12 +10,21 @@
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
+    "pm2:start": "pm2 start npm --name noi-bot -- start",
+    "pm2:stop": "pm2 stop noi-bot",
+    "pm2:restart": "pm2 restart noi-bot",
+    "pm2:delete": "pm2 delete noi-bot",
+    "pm2:logs": "pm2 logs noi-bot",
+    "pm2:save": "pm2 save",
+    "pm2:startup": "pm2 startup",
+    "pm2:status": "pm2 status noi-bot",
     "commands:register": "tsx scripts/registerCommands.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "lint": "eslint src scripts tests --ext .ts",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@discordjs/voice": "^0.18.0",
     "better-sqlite3": "^12.9.0",
     "discord.js": "^14.17.3",
     "dotenv": "^16.4.7"

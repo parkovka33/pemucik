@@ -1,14 +1,15 @@
 import type { Client } from 'discord.js';
 
 import { commandMap } from '../commands';
-import {
-  handlePersistentInterfaceInteraction,
-  matchesPersistentInterfaceInteraction,
-} from '../interactions/interfaceInteractions';
+import { matchesPersistentInterfaceInteraction } from '../interactions/interfaceInteractions';
 import { handlePanelInteraction, matchesPanelInteraction } from '../interactions/panelInteractions';
 import type { CommandExecutionContext } from '../types';
 import { safeReply } from '../utils/safeReply';
 import type { Logger } from '../utils/logger';
+
+const TEMPORARILY_DISABLED_COMMAND_MESSAGES: Record<string, string> = {
+  help: '`/help` временно отключена и скрыта из активных slash-команд. Используйте актуальные команды `/voice ...`, `/setup`, `/set`, `/reset` и `/support`.',
+};
 
 export function registerInteractionCreateHandler(client: Client, logger: Logger): void {
   client.on('interactionCreate', async (interaction) => {
@@ -20,7 +21,10 @@ export function registerInteractionCreateHandler(client: Client, logger: Logger)
       (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit())
       && matchesPersistentInterfaceInteraction(interaction.customId)
     ) {
-      await handlePersistentInterfaceInteraction(interaction, context);
+      await safeReply(interaction, {
+        content: 'Постоянный Noi Interface отключён. Используйте slash-команды, например `/voice ...`, `/setup`, `/set` и `/reset`.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -69,6 +73,23 @@ export function registerInteractionCreateHandler(client: Client, logger: Logger)
     const command = commandMap.get(interaction.commandName);
 
     if (!command) {
+      const disabledCommandMessage = TEMPORARILY_DISABLED_COMMAND_MESSAGES[interaction.commandName];
+
+      if (disabledCommandMessage) {
+        logger.info({
+          event: 'disabled_command_used',
+          commandName: interaction.commandName,
+          guildId: interaction.guildId ?? undefined,
+          userId: interaction.user.id,
+        });
+
+        await safeReply(interaction, {
+          content: disabledCommandMessage,
+          ephemeral: true,
+        });
+        return;
+      }
+
       logger.warn({
         event: 'unknown_command',
         commandName: interaction.commandName,

@@ -30,6 +30,7 @@ export const renameCommand: AppCommand = {
       const target = await resolvePanelTarget(member);
       const newName = interaction.options.getString('name', true);
       const updatedTarget = await renamePanelChannel(target, member, newName);
+      const embed = await buildPanelEmbed(updatedTarget);
 
       context.logger.info({
         event: 'rename_command_used',
@@ -39,7 +40,7 @@ export const renameCommand: AppCommand = {
       });
 
       await safeReply(interaction, {
-        embeds: [buildPanelEmbed(updatedTarget)],
+        embeds: [embed],
         components: buildPanelComponents(updatedTarget),
         ephemeral: true,
       });

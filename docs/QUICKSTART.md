@@ -75,4 +75,4 @@ npm run lint
 npm run build
 ```
 
-Then use the manual Discord verification loop in [agent_docs/testing.md](/home/xenovoicik/xenovoice/agent_docs/testing.md).
+Then use the manual Discord verification loop in [agent_docs/testing.md](../agent_docs/testing.md).

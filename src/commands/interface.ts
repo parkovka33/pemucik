@@ -7,12 +7,20 @@ import { safeReply } from '../utils/safeReply';
 export const interfaceCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('interface')
-    .setDescription('Создать или обновить постоянный канал-интерфейс XenoVoice.')
+    .setDescription('Создать или обновить постоянный канал-интерфейс Noi.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild) {
       await safeReply(interaction, {
         content: 'Эту команду можно использовать только внутри сервера.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await safeReply(interaction, {
+        content: 'Эта команда доступна только администраторам сервера.',
         ephemeral: true,
       });
       return;
@@ -30,7 +38,7 @@ export const interfaceCommand: AppCommand = {
       });
 
       await safeReply(interaction, {
-        content: `Xenovoice Interface готов и закреплён в канале <#${result.channelId}>.`,
+        content: `Noi Interface готов и закреплён в канале <#${result.channelId}>.`,
         ephemeral: true,
       });
     } catch (error) {

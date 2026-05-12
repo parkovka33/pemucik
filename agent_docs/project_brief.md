@@ -6,7 +6,7 @@
 
 ## Coding Conventions
 - **Architecture:** Keep command and event handlers thin. Put business logic in `services/`, persistence in `db/repositories/`, and reusable helpers in `utils/`.
-- **Scope discipline:** MVP stays Discord-only. No web dashboard, no custom domain, no AI features, no premium/paywall logic, and no extra temp-voice features until the core loop is stable.
+- **Scope discipline:** MVP stays Discord-only. No web dashboard, no custom domain, no premium/paywall logic, and no broad AI feature branch. The only currently acceptable AI-adjacent exploration is a narrow local Piper-based `/voice tts` slice tied strictly to tracked temp rooms and linked temp text channels.
 - **Current discipline:** The bot has already moved slightly beyond the strict MVP surface, so the priority now is stabilizing and validating the existing `/voice`, `/interface`, and `/setup` defaults rather than expanding into new feature branches.
 - **Type safety:** Use strict TypeScript. Avoid `any`; prefer explicit interfaces or `unknown` with narrowing.
 - **Safety rule:** Before deleting or editing a temporary room, confirm the channel exists in SQLite `temp_channels`.

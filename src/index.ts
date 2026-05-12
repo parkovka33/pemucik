@@ -1,9 +1,11 @@
 import { createDiscordClient } from './client/discordClient';
 import { getEnv } from './config/env';
 import { closeDatabase, getDatabase } from './db/database';
+import { registerChannelDeleteHandler } from './events/channelDelete';
 import { registerInteractionCreateHandler } from './events/interactionCreate';
 import { registerReadyHandler } from './events/ready';
 import { registerVoiceStateUpdateHandler } from './events/voiceStateUpdate';
+import { destroyAllTempTtsPlayback } from './services/ttsPlaybackService';
 import { Logger } from './utils/logger';
 
 async function bootstrap(): Promise<void> {
@@ -15,14 +17,16 @@ async function bootstrap(): Promise<void> {
 
   registerReadyHandler(client, logger);
   registerInteractionCreateHandler(client, logger);
+  registerChannelDeleteHandler(client, logger);
   registerVoiceStateUpdateHandler(client, logger);
 
   process.on('SIGINT', () => {
     logger.info({
       event: 'process_signal',
       signal: 'SIGINT',
-      message: 'Shutting down XenoVoice.',
+      message: 'Shutting down Noi.',
     });
+    destroyAllTempTtsPlayback(logger);
     closeDatabase();
     void client.destroy();
     process.exit(0);
@@ -32,8 +36,9 @@ async function bootstrap(): Promise<void> {
     logger.info({
       event: 'process_signal',
       signal: 'SIGTERM',
-      message: 'Shutting down XenoVoice.',
+      message: 'Shutting down Noi.',
     });
+    destroyAllTempTtsPlayback(logger);
     closeDatabase();
     void client.destroy();
     process.exit(0);
@@ -44,7 +49,7 @@ async function bootstrap(): Promise<void> {
   } catch (error) {
     logger.error({
       event: 'startup_failed',
-      message: 'Failed to start XenoVoice.',
+      message: 'Failed to start Noi.',
     }, error);
     closeDatabase();
     throw error;

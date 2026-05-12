@@ -21,6 +21,7 @@ export const lockCommand: AppCommand = {
       const member = await interaction.guild.members.fetch(interaction.user.id);
       const target = await resolvePanelTarget(member);
       const updatedTarget = await lockPanelChannel(target);
+      const embed = await buildPanelEmbed(updatedTarget);
 
       context.logger.info({
         event: 'lock_command_used',
@@ -30,7 +31,7 @@ export const lockCommand: AppCommand = {
       });
 
       await safeReply(interaction, {
-        embeds: [buildPanelEmbed(updatedTarget)],
+        embeds: [embed],
         components: buildPanelComponents(updatedTarget),
         ephemeral: true,
       });

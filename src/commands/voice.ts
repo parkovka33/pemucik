@@ -35,16 +35,11 @@ import {
   unghostVoiceChannel,
   VoiceControlServiceError,
 } from '../services/voiceControlService';
-import {
-  ensureLinkedTempTextChannel,
-  TempTextChannelServiceError,
-} from '../services/tempTextChannelService';
 
 const DEFAULT_BITRATE_CHOICES_KBPS = [8, 16, 24, 32, 40, 48, 64, 80, 96, 128, 256, 384] as const;
 const FALLBACK_VOICE_REGION_IDS = COMMON_VOICE_REGION_IDS.filter((region) => region !== 'auto');
 const BLOCKED_SUBCOMMAND_MESSAGES = {
-  lfm: '`/voice lfm` пока заблокирована в XenoVoice: для VoiceMaster-совместимого поведения нужен отдельный persist-уровень с designated LFM channel и админским способом его настроить.',
-  game: '`/voice game` пока заблокирована в XenoVoice: текущий бот намеренно не использует `GuildPresences`, поэтому Discord activity/game данные недоступны без отдельного решения по intents.',
+  lfm: '`/voice lfm` временно отключена и скрыта из активных slash-команд Noi.',
 } as const;
 
 function formatUserLimit(limit: number): string {
@@ -149,7 +144,7 @@ async function resolveMentionableAccessTarget(
 export const voiceCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('voice')
-    .setDescription('Команды управления временной комнатой XenoVoice.')
+    .setDescription('Команды управления временной комнатой Noi.')
     .addSubcommand((subcommand) =>
       subcommand
         .setName('name')
@@ -239,16 +234,6 @@ export const voiceCommand: AppCommand = {
     )
     .addSubcommand((subcommand) =>
       subcommand
-        .setName('lfm')
-        .setDescription('Зарезервировано под VoiceMaster-style Looking for Members flow.'),
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName('text')
-        .setDescription('Создать или переиспользовать связанный временный text channel для комнаты.'),
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
         .setName('bitrate')
         .setDescription('Изменить битрейт комнаты в kbps.')
         .addIntegerOption((option) =>
@@ -309,11 +294,6 @@ export const voiceCommand: AppCommand = {
             .setRequired(false)
             .setMaxLength(300),
         ),
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName('game')
-        .setDescription('Зарезервировано под автообновление названия комнаты по Discord activity.'),
     ),
   async autocomplete(interaction) {
     const focused = interaction.options.getFocused(true);
@@ -350,7 +330,7 @@ export const voiceCommand: AppCommand = {
       const actor = await interaction.guild.members.fetch(interaction.user.id);
       const subcommand = interaction.options.getSubcommand();
 
-      if (subcommand === 'lfm' || subcommand === 'game') {
+      if (subcommand === 'lfm') {
         context.logger.info({
           event: 'voice_subcommand_blocked_by_scope',
           guildId: interaction.guild.id,
@@ -360,6 +340,20 @@ export const voiceCommand: AppCommand = {
 
         await safeReply(interaction, {
           content: BLOCKED_SUBCOMMAND_MESSAGES[subcommand],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      if (subcommand === 'tts') {
+        context.logger.info({
+          event: 'voice_tts_temporarily_disabled',
+          guildId: interaction.guild.id,
+          userId: interaction.user.id,
+        });
+
+        await safeReply(interaction, {
+          content: '`/voice tts` временно отключён и скрыт из активных slash-команд, пока мы разбираемся со стабильностью voice/TTS. Остальные `/voice ...` команды продолжают работать.',
           ephemeral: true,
         });
         return;
@@ -500,26 +494,16 @@ export const voiceCommand: AppCommand = {
       }
 
       if (subcommand === 'text') {
-        if (!target.actorCanManage) {
-          throw new PanelServiceError(
-            'NOT_OWNER_OR_ADMIN',
-            'Только владелец комнаты или администратор сервера может создать связанный текстовый канал.',
-          );
-        }
-
-        const linkedTextChannel = await ensureLinkedTempTextChannel(target);
-        const updatedTarget = await resolvePanelTarget(actor);
-
         context.logger.info({
-          event: 'voice_text_used',
+          event: 'voice_text_deprecated',
           guildId: interaction.guild.id,
           userId: interaction.user.id,
-          channelId: updatedTarget.channel.id,
-          textChannelId: linkedTextChannel.id,
+          channelId: target.channel.id,
         });
 
         await safeReply(interaction, {
-          content: `${buildVoiceReply('Связанный текстовый канал готов.', updatedTarget)}\n\nТекстовый канал: <#${linkedTextChannel.id}>`,
+          content: `${buildVoiceReply('Отдельный текстовый канал больше не требуется.', target)}\n\nИспользуйте встроенный чат этой голосовой комнаты. Озвучка TTS сейчас временно отключена.`,
+          ephemeral: true,
         });
         return;
       }
@@ -629,7 +613,6 @@ export const voiceCommand: AppCommand = {
       if (
         error instanceof PanelServiceError
         || error instanceof VoiceControlServiceError
-        || error instanceof TempTextChannelServiceError
       ) {
         context.logger.warn({
           event: 'voice_command_blocked',

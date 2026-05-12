@@ -77,6 +77,27 @@ export function findTempChannelByOwner(guildId: string, ownerUserId: string): Te
   return row ? mapTempChannelRow(row) : null;
 }
 
+export function listTempChannelsByGuildId(guildId: string): TempChannelRecord[] {
+  const database = getDatabase();
+  const rows = database
+    .prepare(
+      `SELECT
+        channel_id,
+        guild_id,
+        owner_user_id,
+        category_id,
+        created_at,
+        last_active_at,
+        is_locked,
+        user_limit
+      FROM temp_channels
+      WHERE guild_id = ?`,
+    )
+    .all(guildId) as TempChannelRow[];
+
+  return rows.map(mapTempChannelRow);
+}
+
 export function countTempChannelsByGuildId(guildId: string): number {
   const database = getDatabase();
   const row = database

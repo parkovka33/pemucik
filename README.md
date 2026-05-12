@@ -19,9 +19,10 @@ What is already implemented in the MVP:
 
 Current working focus:
 
-- verify the newest `/setup` defaults and `/interface` behavior in live Discord
+- keep the remaining live Discord verification work pending while local planning and implementation continue
 - keep docs aligned with the actual command surface
 - continue polishing reliability before any future release or listing push
+- document the planned narrow `/voice tts` slice around linked temp text channels and local Piper voices before implementation begins
 
 Current MVP constraints:
 
@@ -39,6 +40,12 @@ Current MVP constraints:
 - `/interface` - create or refresh a persistent XenoVoice control interface channel
 - `/help` - show setup, usage, and troubleshooting guidance
 - `/support` - show support and donation links
+
+## Planned next slice
+
+- `/voice tts ...` is planned as a narrow, opt-in room-level feature that reads messages from a tracked linked text channel into the matching tracked temp voice room using local Piper voice presets
+- this feature is not implemented yet and should stay scoped to tracked temp rooms only
+- see [docs/TTS-PIPER-PLAN.md](./docs/TTS-PIPER-PLAN.md) for the current design
 
 ## Safety model
 
@@ -101,17 +108,18 @@ For the current beta, `Administrator` is the simplest way to avoid permission ed
 
 ## Docs map
 
-- [AGENTS.md](/home/xenovoicik/xenovoice/AGENTS.md) - master plan and guardrails
-- [MEMORY.md](/home/xenovoicik/xenovoice/MEMORY.md) - durable milestone log
-- [docs/VPS-MIGRATION.md](/home/xenovoicik/xenovoice/docs/VPS-MIGRATION.md) - private GitHub backup and new VPS migration guide
-- [docs/LISTING.md](/home/xenovoicik/xenovoice/docs/LISTING.md) - listing-ready description and asset checklist
-- [docs/RELEASE-CHECKLIST.md](/home/xenovoicik/xenovoice/docs/RELEASE-CHECKLIST.md) - pre-submission checklist for public listing and outreach
-- [docs/QUICKSTART.md](/home/xenovoicik/xenovoice/docs/QUICKSTART.md) - shortest path from clone to working setup
-- [docs/TROUBLESHOOTING.md](/home/xenovoicik/xenovoice/docs/TROUBLESHOOTING.md) - common setup, permission, and cleanup issues
-- [docs/PRD-XenoVoice-MVP.md](/home/xenovoicik/xenovoice/docs/PRD-XenoVoice-MVP.md) - product requirements
-- [docs/TechDesign-XenoVoice-MVP.md](/home/xenovoicik/xenovoice/docs/TechDesign-XenoVoice-MVP.md) - technical design
-- [agent_docs/testing.md](/home/xenovoicik/xenovoice/agent_docs/testing.md) - manual verification loop
+- [AGENTS.md](./AGENTS.md) - master plan and guardrails
+- [MEMORY.md](./MEMORY.md) - durable milestone log
+- [docs/VPS-MIGRATION.md](./docs/VPS-MIGRATION.md) - private GitHub backup and new VPS migration guide
+- [docs/LISTING.md](./docs/LISTING.md) - listing-ready description and asset checklist
+- [docs/RELEASE-CHECKLIST.md](./docs/RELEASE-CHECKLIST.md) - pre-submission checklist for public listing and outreach
+- [docs/QUICKSTART.md](./docs/QUICKSTART.md) - shortest path from clone to working setup
+- [docs/TTS-PIPER-PLAN.md](./docs/TTS-PIPER-PLAN.md) - planned narrow linked-text TTS design using local Piper voices
+- [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) - common setup, permission, and cleanup issues
+- [docs/PRD-XenoVoice-MVP.md](./docs/PRD-XenoVoice-MVP.md) - product requirements
+- [docs/TechDesign-XenoVoice-MVP.md](./docs/TechDesign-XenoVoice-MVP.md) - technical design
+- [agent_docs/testing.md](./agent_docs/testing.md) - manual verification loop
 
 ## Verification
 
-For product behavior, use the manual Discord verification loop in [agent_docs/testing.md](/home/xenovoicik/xenovoice/agent_docs/testing.md). Core voice behavior is not considered done without a real Discord check.
+For product behavior, use the manual Discord verification loop in [agent_docs/testing.md](./agent_docs/testing.md). Core voice behavior is not considered done without a real Discord check.

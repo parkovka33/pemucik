@@ -38,8 +38,8 @@ function isUnknownChannelError(error: unknown): error is { code: number } {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 10003;
 }
 
-function buildInterfaceEmbed(): EmbedBuilder {
-  return buildPersistentInterfaceEmbed();
+async function buildInterfaceEmbed(guild: Guild): Promise<EmbedBuilder> {
+  return buildPersistentInterfaceEmbed(guild);
 }
 
 function findExistingInterfaceChannelByName(guild: Guild, categoryId: string): TextChannel | null {
@@ -77,7 +77,7 @@ async function fetchExistingInterfaceChannel(guild: Guild, channelId: string | n
   if (channel.type !== ChannelType.GuildText) {
     throw new InterfaceServiceError(
       'INTERFACE_CHANNEL_INVALID',
-      'Сохранённый интерфейс XenoVoice больше не является текстовым каналом.',
+      'Сохранённый интерфейс Noi больше не является текстовым каналом.',
     );
   }
 
@@ -90,7 +90,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
   if (!settings) {
     throw new InterfaceServiceError(
       'SETTINGS_NOT_FOUND',
-      'Сначала запустите `/setup`, чтобы XenoVoice знал, где размещать интерфейс.',
+      'Сначала запустите `/setup`, чтобы Noi знал, где размещать интерфейс.',
     );
   }
 
@@ -113,7 +113,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
   if (!category || category.type !== ChannelType.GuildCategory) {
     throw new InterfaceServiceError(
       'CATEGORY_NOT_FOUND',
-      'Не удалось найти категорию XenoVoice. Запустите `/setup` ещё раз.',
+      'Не удалось найти категорию Noi. Запустите `/setup` ещё раз.',
     );
   }
 
@@ -138,7 +138,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
         ],
       },
     ],
-    reason: 'XenoVoice: создание постоянного интерфейсного канала',
+    reason: 'Noi: создание постоянного интерфейсного канала',
   });
 }
 
@@ -165,8 +165,9 @@ async function upsertInterfaceMessage(
   if (messageId) {
     try {
       const existingMessage = await channel.messages.fetch(messageId);
+      const embed = await buildInterfaceEmbed(channel.guild);
       await existingMessage.edit({
-        embeds: [buildInterfaceEmbed()],
+        embeds: [embed],
         components: buildPersistentInterfaceComponents(),
       });
 
@@ -179,16 +180,18 @@ async function upsertInterfaceMessage(
   const discoveredMessage = await findExistingInterfaceMessage(channel);
 
   if (discoveredMessage) {
+    const embed = await buildInterfaceEmbed(channel.guild);
     await discoveredMessage.edit({
-      embeds: [buildInterfaceEmbed()],
+      embeds: [embed],
       components: buildPersistentInterfaceComponents(),
     });
 
     return discoveredMessage.id;
   }
 
+  const embed = await buildInterfaceEmbed(channel.guild);
   const message = await channel.send({
-    embeds: [buildInterfaceEmbed()],
+    embeds: [embed],
     components: buildPersistentInterfaceComponents(),
   });
 

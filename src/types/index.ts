@@ -79,6 +79,15 @@ export interface TempTextChannelRecord {
   updatedAt: string;
 }
 
+export interface TempTtsSettingsRecord {
+  voiceChannelId: string;
+  guildId: string;
+  enabled: boolean;
+  voiceKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserCooldownRecord {
   guildId: string;
   userId: string;

@@ -15,7 +15,6 @@ import {
 
 import {
   COMMON_VOICE_REGION_IDS,
-  DISCORD_DARK_EMBED_COLOR,
   INTERFACE_CUSTOM_ID_PREFIX,
   INTERFACE_DELETE_CANCEL_ID,
   INTERFACE_DELETE_CONFIRM_ID,
@@ -26,6 +25,7 @@ import {
   PANEL_RENAME_INPUT_ID,
 } from '../config/constants';
 import { findTempChannelByOwner } from '../db/repositories/tempChannelsRepo';
+import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 import {
   PanelServiceError,
   resolvePanelTargetByChannelId,
@@ -86,9 +86,9 @@ function buildModalCustomId(action: 'rename' | 'limit' | MemberInputAction): str
 function buildLegendGrid(): string {
   return [
     '```text',
-    '✏️ Rename      👥 Limit       🔒 Access      🌐 Region',
-    '✅ Permit      ➖ Unlist       📨 Invite      👢 Kick',
-    '⛔ Ban         ♻️ Unban        👑 Claim       🔁 Transfer    🗑️ Delete',
+    'Rename      Limit       Access      Region',
+    'Permit      Unlist      Invite      Kick',
+    'Ban         Unban       Claim       Transfer    Delete',
     '```',
   ].join('\n');
 }
@@ -105,13 +105,12 @@ function buildRegionOptions(currentValue: string | null): Array<{
   }));
 }
 
-export function buildPersistentInterfaceEmbed(): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(DISCORD_DARK_EMBED_COLOR)
+export async function buildPersistentInterfaceEmbed(guild: Guild): Promise<EmbedBuilder> {
+  const embed = new EmbedBuilder()
     .setTitle(INTERFACE_MESSAGE_TITLE)
     .setDescription(
       [
-        '**One interface, many owners.** XenoVoice применяет действие к временной комнате, связанной с **вашим Discord ID**.',
+        '**One interface, many owners.** Noi применяет действие к временной комнате, связанной с **вашим Discord ID**.',
         '**Все ответы приватные.** Любой результат или ошибка ниже видны только тому, кто нажал кнопку.',
         buildLegendGrid(),
       ].join('\n\n'),
@@ -133,6 +132,8 @@ export function buildPersistentInterfaceEmbed(): EmbedBuilder {
         inline: false,
       },
     );
+
+  return applyBotAvatarEmbedColor(embed, guild.client);
 }
 
 export function buildPersistentInterfaceComponents(): ActionRowBuilder<ButtonBuilder>[] {
@@ -140,59 +141,59 @@ export function buildPersistentInterfaceComponents(): ActionRowBuilder<ButtonBui
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('rename'))
-        .setEmoji('✏️')
+        .setLabel('Rename')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('limit'))
-        .setEmoji('👥')
+        .setLabel('Limit')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('toggle_access'))
-        .setEmoji('🔒')
+        .setLabel('Access')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('region'))
-        .setEmoji('🌐')
+        .setLabel('Region')
         .setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('permit'))
-        .setEmoji('✅')
+        .setLabel('Permit')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('remove_permit'))
-        .setEmoji('➖')
+        .setLabel('Unlist')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('invite'))
-        .setEmoji('📨')
+        .setLabel('Invite')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('kick'))
-        .setEmoji('👢')
+        .setLabel('Kick')
         .setStyle(ButtonStyle.Danger),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('ban'))
-        .setEmoji('⛔')
+        .setLabel('Ban')
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('unban'))
-        .setEmoji('♻️')
+        .setLabel('Unban')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('claim'))
-        .setEmoji('👑')
+        .setLabel('Claim')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('transfer'))
-        .setEmoji('🔁')
+        .setLabel('Transfer')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(buildActionCustomId('delete'))
-        .setEmoji('🗑️')
+        .setLabel('Delete')
         .setStyle(ButtonStyle.Danger),
     ),
   ];
@@ -343,7 +344,7 @@ export async function resolvePersistentInterfaceTarget(member: GuildMember): Pro
 
   throw new PanelServiceError(
     'TEMP_CHANNEL_NOT_FOUND',
-    'У вас сейчас нет временной комнаты XenoVoice, привязанной к вашему аккаунту.',
+    'У вас сейчас нет временной комнаты Noi, привязанной к вашему аккаунту.',
   );
 }
 
