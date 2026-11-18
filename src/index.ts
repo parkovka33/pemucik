@@ -3,6 +3,7 @@ import { getEnv } from './config/env';
 import { closeDatabase, getDatabase } from './db/database';
 import { registerChannelDeleteHandler } from './events/channelDelete';
 import { registerInteractionCreateHandler } from './events/interactionCreate';
+import { registerMessageCreateHandler } from './events/messageCreate';
 import { registerReadyHandler } from './events/ready';
 import { registerVoiceStateUpdateHandler } from './events/voiceStateUpdate';
 import { destroyAllTempTtsPlayback } from './services/ttsPlaybackService';
@@ -17,6 +18,7 @@ async function bootstrap(): Promise<void> {
 
   registerReadyHandler(client, logger);
   registerInteractionCreateHandler(client, logger);
+  registerMessageCreateHandler(client, logger);
   registerChannelDeleteHandler(client, logger);
   registerVoiceStateUpdateHandler(client, logger);
 
@@ -24,7 +26,7 @@ async function bootstrap(): Promise<void> {
     logger.info({
       event: 'process_signal',
       signal: 'SIGINT',
-      message: 'Shutting down Noi.',
+      message: 'Shutting down Pemucik.',
     });
     destroyAllTempTtsPlayback(logger);
     closeDatabase();
@@ -36,7 +38,7 @@ async function bootstrap(): Promise<void> {
     logger.info({
       event: 'process_signal',
       signal: 'SIGTERM',
-      message: 'Shutting down Noi.',
+      message: 'Shutting down Pemucik.',
     });
     destroyAllTempTtsPlayback(logger);
     closeDatabase();
@@ -47,10 +49,13 @@ async function bootstrap(): Promise<void> {
   try {
     await client.login(env.discordToken);
   } catch (error) {
-    logger.error({
-      event: 'startup_failed',
-      message: 'Failed to start Noi.',
-    }, error);
+    logger.error(
+      {
+        event: 'startup_failed',
+        message: 'Failed to start Pemucik.',
+      },
+      error,
+    );
     closeDatabase();
     throw error;
   }

@@ -212,7 +212,7 @@ async function resolveSetupCategory(
   const category = await guild.channels.create({
     name: DEFAULT_CATEGORY_NAME,
     type: ChannelType.GuildCategory,
-    reason: 'Первичная настройка Noi',
+    reason: 'Первичная настройка Pemucik',
   });
 
   return {
@@ -249,7 +249,7 @@ async function resolveSetupGenerator(
     type: ChannelType.GuildVoice,
     parent: category.id,
     userLimit: DEFAULT_USER_LIMIT,
-    reason: 'Первичная настройка Noi',
+    reason: 'Первичная настройка Pemucik',
   });
 
   return {

@@ -39,6 +39,7 @@ async function fetchRecoverableVoiceChannel(guild: Guild, channelId: string): Pr
 export interface StartupTempChannelRecoverySummary {
   scanned: number;
   removedStale: number;
+  retryPending: number;
   checkedEmpty: number;
   deletedEmpty: number;
   syncedLinkedText: number;
@@ -52,6 +53,7 @@ export async function recoverTrackedTempChannelsForGuild(
   const summary: StartupTempChannelRecoverySummary = {
     scanned: trackedChannels.length,
     removedStale: 0,
+    retryPending: 0,
     checkedEmpty: 0,
     deletedEmpty: 0,
     syncedLinkedText: 0,
@@ -61,8 +63,14 @@ export async function recoverTrackedTempChannelsForGuild(
     const voiceChannel = await fetchRecoverableVoiceChannel(guild, trackedChannel.channelId);
 
     if (!voiceChannel) {
-      await deleteTrackedTempChannelArtifacts(guild, trackedChannel.channelId);
-      summary.removedStale += 1;
+      const cleanupResult = await deleteTrackedTempChannelArtifacts(guild, trackedChannel.channelId);
+
+      if (cleanupResult.status === 'completed') {
+        summary.removedStale += 1;
+      } else {
+        summary.retryPending += 1;
+      }
+
       continue;
     }
 
@@ -84,19 +92,24 @@ export async function recoverTrackedTempChannelsForGuild(
 
   summary.checkedEmpty = emptyResults.length;
   summary.deletedEmpty = emptyResults.filter((result) => result === 'deleted').length;
+  summary.retryPending += emptyResults.filter((result) =>
+    result === 'voice_delete_retry_required' || result === 'artifact_cleanup_retry_required'
+  ).length;
 
   return summary;
 }
 
-export async function cleanupDeletedTrackedVoiceChannel(guild: Guild, channelId: string): Promise<boolean> {
+export async function cleanupDeletedTrackedVoiceChannel(
+  guild: Guild,
+  channelId: string,
+): ReturnType<typeof deleteTrackedTempChannelArtifacts> {
   const trackedChannel = findTempChannelByChannelId(channelId);
 
   if (!trackedChannel) {
-    return false;
+    return Promise.resolve({ status: 'not_tracked' });
   }
 
-  await deleteTrackedTempChannelArtifacts(guild, channelId);
-  return true;
+  return deleteTrackedTempChannelArtifacts(guild, channelId);
 }
 
 export function cleanupDeletedTrackedTextChannel(textChannelId: string): boolean {

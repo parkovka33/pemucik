@@ -13,7 +13,23 @@ export type CleanupTempChannelResult =
   | 'missing_channel'
   | 'not_voice_channel'
   | 'not_empty'
-  | 'deleted';
+  | 'deleted'
+  | 'voice_delete_retry_required'
+  | 'artifact_cleanup_retry_required';
+
+export type TrackedArtifactCleanupResult =
+  | {
+      status: 'completed';
+      linkedTextResult: 'not_linked' | 'missing_text_channel' | 'deleted';
+    }
+  | {
+      status: 'not_tracked';
+    }
+  | {
+      status: 'retry_required';
+      stage: 'linked_text' | 'tts_playback' | 'parent_record';
+      error: unknown;
+    };
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -25,13 +41,54 @@ function isUnknownChannelError(error: unknown): error is { code: number } {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 10003;
 }
 
-export async function deleteTrackedTempChannelArtifacts(guild: Guild, channelId: string): Promise<void> {
-  try {
-    await deleteLinkedTempTextChannelForVoiceChannel(guild, channelId);
-  } finally {
-    await cleanupTempTtsPlaybackForVoiceChannel(guild.id, channelId);
-    deleteTempChannelByChannelId(channelId);
+export async function deleteTrackedTempChannelArtifacts(
+  guild: Guild,
+  channelId: string,
+): Promise<TrackedArtifactCleanupResult> {
+  const trackedChannel = findTempChannelByChannelId(channelId);
+
+  if (!trackedChannel || trackedChannel.guildId !== guild.id) {
+    return { status: 'not_tracked' };
   }
+
+  let linkedTextResult: 'not_linked' | 'missing_text_channel' | 'deleted';
+
+  try {
+    linkedTextResult = await deleteLinkedTempTextChannelForVoiceChannel(guild, channelId);
+  } catch (error) {
+    cleanupTempTtsPlaybackForVoiceChannel(guild.id, channelId);
+
+    return {
+      status: 'retry_required',
+      stage: 'linked_text',
+      error,
+    };
+  }
+
+  try {
+    cleanupTempTtsPlaybackForVoiceChannel(guild.id, channelId);
+  } catch (error) {
+    return {
+      status: 'retry_required',
+      stage: 'tts_playback',
+      error,
+    };
+  }
+
+  try {
+    deleteTempChannelByChannelId(channelId);
+  } catch (error) {
+    return {
+      status: 'retry_required',
+      stage: 'parent_record',
+      error,
+    };
+  }
+
+  return {
+    status: 'completed',
+    linkedTextResult,
+  };
 }
 
 export async function cleanupTrackedTempChannelIfEmpty(
@@ -57,9 +114,11 @@ export async function cleanupTrackedTempChannelIfEmpty(
   }
 
   if (!channel) {
-    await deleteTrackedTempChannelArtifacts(guild, channelId);
+    const cleanupResult = await deleteTrackedTempChannelArtifacts(guild, channelId);
 
-    return 'missing_channel';
+    return cleanupResult.status === 'completed'
+      ? 'missing_channel'
+      : 'artifact_cleanup_retry_required';
   }
 
   if (!channel.isVoiceBased()) {
@@ -72,9 +131,17 @@ export async function cleanupTrackedTempChannelIfEmpty(
     return 'not_empty';
   }
 
-  await voiceChannel.delete('Noi: удаление пустой временной комнаты');
+  try {
+    await voiceChannel.delete('Pemucik: удаление пустой временной комнаты');
+  } catch (error) {
+    if (!isUnknownChannelError(error)) {
+      return 'voice_delete_retry_required';
+    }
+  }
 
-  await deleteTrackedTempChannelArtifacts(guild, channelId);
+  const cleanupResult = await deleteTrackedTempChannelArtifacts(guild, channelId);
 
-  return 'deleted';
+  return cleanupResult.status === 'completed'
+    ? 'deleted'
+    : 'artifact_cleanup_retry_required';
 }

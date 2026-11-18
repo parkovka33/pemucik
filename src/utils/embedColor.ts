@@ -5,6 +5,7 @@ import { APP_COLOR } from '../config/constants';
 
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const MIN_ALPHA = 32;
+const AVATAR_FETCH_TIMEOUT_MS = 1_500;
 const embedColorCache = new Map<string, number>();
 
 type SupportedPngColorType = 2 | 6;
@@ -56,7 +57,10 @@ function paethPredictor(left: number, up: number, upLeft: number): number {
 }
 
 function parsePngMetadata(buffer: Buffer): PngMetadata {
-  if (buffer.length < 33 || !buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+  if (
+    buffer.length < 33 ||
+    !buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)
+  ) {
     throw new Error('Invalid PNG signature');
   }
 
@@ -148,11 +152,15 @@ function unfilterScanlines(data: Buffer, metadata: PngMetadata): Buffer {
 
     for (let column = 0; column < stride; column += 1) {
       const raw = readByte(data, sourceOffset + column);
-      const left = column >= bytesPerPixel ? readByte(output, targetOffset + column - bytesPerPixel) : 0;
+      const left =
+        column >= bytesPerPixel
+          ? readByte(output, targetOffset + column - bytesPerPixel)
+          : 0;
       const up = row > 0 ? readByte(output, targetOffset - stride + column) : 0;
-      const upLeft = row > 0 && column >= bytesPerPixel
-        ? readByte(output, targetOffset - stride + column - bytesPerPixel)
-        : 0;
+      const upLeft =
+        row > 0 && column >= bytesPerPixel
+          ? readByte(output, targetOffset - stride + column - bytesPerPixel)
+          : 0;
 
       if (filterType === 0) {
         output[targetOffset + column] = raw;
@@ -161,9 +169,11 @@ function unfilterScanlines(data: Buffer, metadata: PngMetadata): Buffer {
       } else if (filterType === 2) {
         output[targetOffset + column] = (raw + up) & 0xff;
       } else if (filterType === 3) {
-        output[targetOffset + column] = (raw + Math.floor((left + up) / 2)) & 0xff;
+        output[targetOffset + column] =
+          (raw + Math.floor((left + up) / 2)) & 0xff;
       } else if (filterType === 4) {
-        output[targetOffset + column] = (raw + paethPredictor(left, up, upLeft)) & 0xff;
+        output[targetOffset + column] =
+          (raw + paethPredictor(left, up, upLeft)) & 0xff;
       } else {
         throw new Error('Unsupported PNG filter type');
       }
@@ -237,14 +247,20 @@ function resolveDominantColorFromPng(buffer: Buffer): number {
   return selectDominantColor(pixelData, metadata);
 }
 
-export async function resolveBotAvatarEmbedColor(client: Client): Promise<number> {
+export async function resolveBotAvatarEmbedColor(
+  client: Client,
+): Promise<number> {
   const botUser = client.user;
 
   if (!botUser) {
     return APP_COLOR;
   }
 
-  const avatarUrl = botUser.displayAvatarURL({ extension: 'png', forceStatic: true, size: 64 });
+  const avatarUrl = botUser.displayAvatarURL({
+    extension: 'png',
+    forceStatic: true,
+    size: 64,
+  });
   const cachedColor = embedColorCache.get(avatarUrl);
 
   if (cachedColor !== undefined) {
@@ -252,7 +268,9 @@ export async function resolveBotAvatarEmbedColor(client: Client): Promise<number
   }
 
   try {
-    const response = await fetch(avatarUrl);
+    const response = await fetch(avatarUrl, {
+      signal: AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       return APP_COLOR;
@@ -267,7 +285,10 @@ export async function resolveBotAvatarEmbedColor(client: Client): Promise<number
   }
 }
 
-export async function applyBotAvatarEmbedColor(embed: EmbedBuilder, client: Client): Promise<EmbedBuilder> {
+export async function applyBotAvatarEmbedColor(
+  embed: EmbedBuilder,
+  client: Client,
+): Promise<EmbedBuilder> {
   embed.setColor(await resolveBotAvatarEmbedColor(client));
   return embed;
 }

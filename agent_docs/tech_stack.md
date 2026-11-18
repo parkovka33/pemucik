@@ -69,7 +69,7 @@ npx tsc --init
 DISCORD_TOKEN=your_bot_token
 DISCORD_CLIENT_ID=your_application_client_id
 DISCORD_GUILD_ID=optional_test_guild_id_for_dev_commands
-DATABASE_PATH=./data/xenovoice.sqlite
+DATABASE_PATH=./data/pemucik.sqlite
 LOG_LEVEL=info
 NODE_ENV=production
 SUPPORT_SERVER_URL=https://discord.gg/your-support-server
@@ -86,7 +86,7 @@ DONATION_URL=https://ko-fi.com/your-page
 
 ## Project Structure
 ```text
-xenovoice/
+pemucik/
 ├── src/
 │   ├── index.ts
 │   ├── config/
@@ -144,11 +144,11 @@ xenovoice/
 │   ├── backupSqlite.sh
 │   └── healthcheck.ts
 ├── data/
-│   └── xenovoice.sqlite
+│   └── pemucik.sqlite
 ├── logs/
 │   └── app.log
 ├── docs/
-│   ├── TROUBLESHOOTING.md
+│   ├── troubleshooting.md
 │   ├── DEPLOYMENT.md
 │   └── SECURITY.md
 ├── .env.example
@@ -262,7 +262,7 @@ Why this pattern matters:
 ## Discord UI Example
 ```ts
 const panelEmbed = new EmbedBuilder()
-  .setTitle('🎛️ XenoVoice Control Panel')
+  .setTitle('🎛️ Pemucik Control Panel')
   .setDescription('Manage your temporary voice room without leaving Discord.')
   .addFields(
     { name: 'Channel', value: tempChannel.name, inline: true },
@@ -296,7 +296,7 @@ Why this example exists:
 - **Install:** Node.js LTS, git, sqlite3
 - **Build:** `npm run build`
 - **Register commands:** `npm run commands:register`
-- **Run:** `pm2 start dist/index.js --name xenovoice`
+- **Run:** `pm2 start dist/index.js --name pemucik`
 - **Persist PM2:** `pm2 save` and `pm2 startup`
 - **Backup:** daily SQLite backup script
 

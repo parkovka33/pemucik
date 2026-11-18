@@ -1,13 +1,13 @@
-# XenoVoice Release Checklist
+# Pemucik Release Checklist
 
-Use this checklist before calling XenoVoice ready for public bot-directory submission or a broader outreach push.
+Use this checklist before calling Pemucik ready for public bot-directory submission or a broader outreach push.
 
 ## 1. Repository readiness
 
 - [ ] [README.md](../README.md) matches the actual shipped MVP behavior.
-- [ ] [docs/LISTING.md](./LISTING.md) does not promise post-MVP features.
-- [ ] [docs/QUICKSTART.md](./QUICKSTART.md) and [docs/TROUBLESHOOTING.md](./TROUBLESHOOTING.md) reflect the current setup and support flow.
-- [ ] `.github` FAQ/support/issue templates are aligned with XenoVoice rather than the old repo template.
+- [ ] [docs/listing.md](./listing.md) does not promise post-MVP features.
+- [ ] [docs/quickstart.md](./quickstart.md) and [docs/troubleshooting.md](./troubleshooting.md) reflect the current setup and support flow.
+- [ ] `.github` FAQ/support/issue templates are aligned with Pemucik rather than the old repo template.
 - [ ] Any remaining template-era files are either cleaned up or consciously left for a later pass.
 
 ## 2. Code and command checks
@@ -21,7 +21,7 @@ Use this checklist before calling XenoVoice ready for public bot-directory submi
 
 Run the real Discord loop from [agent_docs/testing.md](../agent_docs/testing.md).
 
-- [ ] `/setup` creates or reuses the XenoVoice category and generator channel
+- [ ] `/setup` creates or reuses the Pemucik category and generator channel
 - [ ] joining the generator creates a tracked temp room
 - [ ] the member is moved into the temp room
 - [ ] `/voice rename`, `/voice lock`, `/voice unlock`, and `/voice limit` work for the owner
@@ -39,12 +39,12 @@ Run the real Discord loop from [agent_docs/testing.md](../agent_docs/testing.md)
 - [ ] `/help` copy is accurate for the current product surface
 - [ ] `/support` behaves correctly with configured links
 - [ ] `/support` still has acceptable fallback copy when support or donation URLs are not configured
-- [ ] known permission failure modes are documented in [docs/TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+- [ ] known permission failure modes are documented in [docs/troubleshooting.md](./troubleshooting.md)
 
 ## 5. Listing readiness
 
-- [ ] choose one short description from [docs/LISTING.md](./LISTING.md)
-- [ ] choose one long description from [docs/LISTING.md](./LISTING.md)
+- [ ] choose one short description from [docs/listing.md](./listing.md)
+- [ ] choose one long description from [docs/listing.md](./listing.md)
 - [ ] verify listing bullets do not mention unsupported features
 - [ ] verify current language expectations are honest
 - [ ] verify one-generator-per-server MVP limitation is not hidden if the bot list needs that context

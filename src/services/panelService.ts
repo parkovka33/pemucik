@@ -13,7 +13,10 @@ import {
   type VoiceChannel,
 } from 'discord.js';
 
-import { PANEL_CUSTOM_ID_PREFIX, PANEL_RENAME_INPUT_ID } from '../config/constants';
+import {
+  PANEL_CUSTOM_ID_PREFIX,
+  PANEL_RENAME_INPUT_ID,
+} from '../config/constants';
 import {
   findTempChannelByChannelId,
   findTempChannelByOwner,
@@ -21,13 +24,27 @@ import {
   updateTempChannelLockState,
   updateTempChannelUserLimit,
 } from '../db/repositories/tempChannelsRepo';
-import { getRenameCooldownRemainingSeconds, startRenameCooldown } from './cooldownService';
+import {
+  getRenameCooldownRemainingSeconds,
+  startRenameCooldown,
+} from './cooldownService';
+import {
+  applyRecoverableRoomRestriction,
+  ManagedPermissionMutationError,
+} from './managedPermissionMutation';
 import { syncLinkedTempTextChannelForTarget } from './tempTextChannelService';
 import { applyBotAvatarEmbedColor } from '../utils/embedColor';
 
 import type { TempChannelRecord } from '../types';
 
-const PANEL_ACTIONS = ['rename', 'lock', 'unlock', 'setlimit', 'refresh', 'claim'] as const;
+const PANEL_ACTIONS = [
+  'rename',
+  'lock',
+  'unlock',
+  'setlimit',
+  'refresh',
+  'claim',
+] as const;
 
 type PanelAction = (typeof PANEL_ACTIONS)[number];
 type PanelAccessMode = 'owner' | 'admin' | 'claim';
@@ -43,7 +60,8 @@ export class PanelServiceError extends Error {
       | 'RENAME_COOLDOWN_ACTIVE'
       | 'INVALID_LIMIT'
       | 'CLAIM_NOT_ALLOWED'
-      | 'ALREADY_OWNER',
+      | 'ALREADY_OWNER'
+      | 'PERMISSION_SAFETY_BLOCKED',
     message: string,
   ) {
     super(message);
@@ -64,8 +82,10 @@ function buildPanelCustomId(action: PanelAction, channelId: string): string {
 }
 
 function isAdminOverride(member: GuildMember): boolean {
-  return member.permissions.has(PermissionFlagsBits.Administrator)
-    || member.permissions.has(PermissionFlagsBits.ManageChannels);
+  return (
+    member.permissions.has(PermissionFlagsBits.Administrator) ||
+    member.permissions.has(PermissionFlagsBits.ManageChannels)
+  );
 }
 
 function formatUserLimit(userLimit: number): string {
@@ -81,7 +101,9 @@ function formatRegion(rtcRegion: string | null): string {
 }
 
 function isChannelGhosted(channel: VoiceChannel): boolean {
-  const overwrite = channel.permissionOverwrites.cache.get(channel.guild.roles.everyone.id);
+  const overwrite = channel.permissionOverwrites.cache.get(
+    channel.guild.roles.everyone.id,
+  );
 
   return overwrite?.deny.has(PermissionFlagsBits.ViewChannel) ?? false;
 }
@@ -90,7 +112,10 @@ function normalizeChannelName(rawName: string): string {
   return rawName.replace(/\s+/g, ' ').trim();
 }
 
-async function fetchTrackedVoiceChannel(member: GuildMember, channelId: string): Promise<VoiceChannel> {
+async function fetchTrackedVoiceChannel(
+  member: GuildMember,
+  channelId: string,
+): Promise<VoiceChannel> {
   const channel = await member.guild.channels.fetch(channelId);
 
   if (!channel || channel.type !== ChannelType.GuildVoice) {
@@ -103,11 +128,20 @@ async function fetchTrackedVoiceChannel(member: GuildMember, channelId: string):
   return channel as VoiceChannel;
 }
 
-function isActorCurrentRoomOccupant(channel: VoiceChannel, member: GuildMember): boolean {
-  return member.voice.channelId === channel.id && channel.members.has(member.id);
+function isActorCurrentRoomOccupant(
+  channel: VoiceChannel,
+  member: GuildMember,
+): boolean {
+  return (
+    member.voice.channelId === channel.id && channel.members.has(member.id)
+  );
 }
 
-function canClaimOwnership(record: TempChannelRecord, channel: VoiceChannel, member: GuildMember): boolean {
+function canClaimOwnership(
+  record: TempChannelRecord,
+  channel: VoiceChannel,
+  member: GuildMember,
+): boolean {
   if (record.ownerUserId === member.id) {
     return false;
   }
@@ -177,7 +211,10 @@ async function ensurePermissionIfNeutral(
   const overwrite = channel.permissionOverwrites.cache.get(overwriteId);
   const permissionBit = PermissionFlagsBits[permission];
 
-  if (overwrite?.allow.has(permissionBit) || overwrite?.deny.has(permissionBit)) {
+  if (
+    overwrite?.allow.has(permissionBit) ||
+    overwrite?.deny.has(permissionBit)
+  ) {
     return;
   }
 
@@ -190,10 +227,15 @@ export function isPanelCustomId(customId: string): boolean {
   return customId.startsWith(`${PANEL_CUSTOM_ID_PREFIX}:`);
 }
 
-export function parsePanelCustomId(customId: string): { action: PanelAction; channelId: string } | null {
+export function parsePanelCustomId(
+  customId: string,
+): { action: PanelAction; channelId: string } | null {
   const parts = customId.split(':');
 
-  if (parts.length !== 4 || `${parts[0]}:${parts[1]}` !== PANEL_CUSTOM_ID_PREFIX) {
+  if (
+    parts.length !== 4 ||
+    `${parts[0]}:${parts[1]}` !== PANEL_CUSTOM_ID_PREFIX
+  ) {
     return null;
   }
 
@@ -210,14 +252,19 @@ export function parsePanelCustomId(customId: string): { action: PanelAction; cha
   };
 }
 
-export async function resolvePanelTarget(member: GuildMember): Promise<ResolvedPanelTarget> {
+export async function resolvePanelTarget(
+  member: GuildMember,
+): Promise<ResolvedPanelTarget> {
   const activeChannelId = member.voice.channelId;
 
   if (activeChannelId) {
     const currentChannelRecord = findTempChannelByChannelId(activeChannelId);
 
     if (currentChannelRecord) {
-      const channel = await fetchTrackedVoiceChannel(member, currentChannelRecord.channelId);
+      const channel = await fetchTrackedVoiceChannel(
+        member,
+        currentChannelRecord.channelId,
+      );
       return buildResolvedTarget(currentChannelRecord, channel, member);
     }
   }
@@ -231,7 +278,10 @@ export async function resolvePanelTarget(member: GuildMember): Promise<ResolvedP
     );
   }
 
-  const channel = await fetchTrackedVoiceChannel(member, ownedRoomRecord.channelId);
+  const channel = await fetchTrackedVoiceChannel(
+    member,
+    ownedRoomRecord.channelId,
+  );
   return buildResolvedTarget(ownedRoomRecord, channel, member);
 }
 
@@ -244,7 +294,7 @@ export async function resolvePanelTargetByChannelId(
   if (!record) {
     throw new PanelServiceError(
       'TEMP_CHANNEL_NOT_FOUND',
-      'Эта комната не отслеживается как временная комната Noi.',
+      'Эта комната не отслеживается как временная комната Pemucik.',
     );
   }
 
@@ -252,18 +302,21 @@ export async function resolvePanelTargetByChannelId(
   return buildResolvedTarget(record, channel, member);
 }
 
-export async function buildPanelEmbed(target: ResolvedPanelTarget): Promise<EmbedBuilder> {
-  const accessModeLabel = target.accessMode === 'admin'
-    ? 'Доступ администратора'
-    : target.accessMode === 'claim'
-      ? 'Доступ на получение владения'
-      : 'Доступ владельца';
+export async function buildPanelEmbed(
+  target: ResolvedPanelTarget,
+): Promise<EmbedBuilder> {
+  const accessModeLabel =
+    target.accessMode === 'admin'
+      ? 'Доступ администратора'
+      : target.accessMode === 'claim'
+        ? 'Доступ на получение владения'
+        : 'Доступ владельца';
   const description = target.actorCanManage
     ? 'Используйте элементы ниже, чтобы управлять своей временной голосовой комнатой.'
     : 'Владелец комнаты сейчас не находится внутри неё. Вы можете забрать владение и после этого управлять комнатой.';
 
   const embed = new EmbedBuilder()
-    .setTitle('Панель управления Noi')
+    .setTitle('Панель управления Pemucik')
     .setDescription(description)
     .addFields(
       {
@@ -317,7 +370,9 @@ export async function buildPanelEmbed(target: ResolvedPanelTarget): Promise<Embe
 
 export function buildPanelComponents(
   target: ResolvedPanelTarget,
-): Array<ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>> {
+): Array<
+  ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>
+> {
   const buttons = new ActionRowBuilder<ButtonBuilder>();
 
   if (target.actorCanManage) {
@@ -369,23 +424,34 @@ export function buildPanelComponents(
       default: true,
     });
 
-  return [buttons, new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(limitSelect)];
+  return [
+    buttons,
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(limitSelect),
+  ];
 }
 
-export function buildRenameModal(channelId: string, currentName: string): ModalBuilder {
+export function buildRenameModal(
+  channelId: string,
+  currentName: string,
+): ModalBuilder {
   const input = new TextInputBuilder()
     .setCustomId(PANEL_RENAME_INPUT_ID)
     .setLabel('Новое название комнаты')
     .setRequired(true)
     .setMinLength(1)
     .setMaxLength(50)
-    .setStyle(TextInputStyle.Short)
-    .setValue(currentName);
+    .setStyle(TextInputStyle.Short);
+
+  if (currentName) {
+    input.setValue(currentName);
+  }
 
   return new ModalBuilder()
     .setCustomId(buildPanelCustomId('rename', channelId))
     .setTitle('Переименовать временную комнату')
-    .addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(input),
+    );
 }
 
 export async function renamePanelChannel(
@@ -404,7 +470,10 @@ export async function renamePanelChannel(
     );
   }
 
-  const cooldownRemainingSeconds = getRenameCooldownRemainingSeconds(actor.guild.id, actor.id);
+  const cooldownRemainingSeconds = getRenameCooldownRemainingSeconds(
+    actor.guild.id,
+    actor.id,
+  );
 
   if (cooldownRemainingSeconds > 0) {
     throw new PanelServiceError(
@@ -414,44 +483,62 @@ export async function renamePanelChannel(
   }
 
   startRenameCooldown(actor.guild.id, actor.id);
-  await target.channel.edit({ name, reason: `Noi: переименование комнаты пользователем ${actor.user.tag}` });
-  const updatedTarget = await resolvePanelTargetByChannelId(actor, target.channel.id);
+  await target.channel.edit({
+    name,
+    reason: `Pemucik: переименование комнаты пользователем ${actor.user.tag}`,
+  });
+  const updatedTarget = await resolvePanelTargetByChannelId(
+    actor,
+    target.channel.id,
+  );
   await syncLinkedTempTextChannelForTarget(updatedTarget);
 
   return updatedTarget;
 }
 
-export async function lockPanelChannel(target: ResolvedPanelTarget): Promise<ResolvedPanelTarget> {
+export async function lockPanelChannel(
+  target: ResolvedPanelTarget,
+): Promise<ResolvedPanelTarget> {
   assertManageAccess(target);
 
-  const everyoneRoleId = target.channel.guild.roles.everyone.id;
-  const ownerId = target.record.ownerUserId;
-  const botId = target.channel.guild.members.me?.id;
+  let restrictedChannel: VoiceChannel;
 
-  await target.channel.permissionOverwrites.edit(everyoneRoleId, {
-    Connect: false,
-  });
+  try {
+    const restriction = await applyRecoverableRoomRestriction({
+      channel: target.channel,
+      ownerId: target.record.ownerUserId,
+      permission: 'Connect',
+      operation: 'lock',
+    });
+    restrictedChannel = restriction.channel;
+  } catch (error) {
+    if (error instanceof ManagedPermissionMutationError) {
+      if (error.code === 'ROLLBACK_FAILED') {
+        updateTempChannelLockState(
+          target.channel.id,
+          error.details.everyoneState === 'deny',
+        );
+      }
 
-  await ensurePermissionIfNeutral(target.channel, ownerId, 'Connect');
+      if (
+        error.code === 'UNSAFE_EXPLICIT_DENY'
+        || error.code === 'UNSAFE_MANAGEMENT_DENY'
+        || error.code === 'BOT_MEMBER_UNAVAILABLE'
+      ) {
+        throw new PanelServiceError(
+          'PERMISSION_SAFETY_BLOCKED',
+          'Не удалось безопасно закрыть комнату: существующие права владельца, бота или управляющих ролей конфликтуют с операцией.',
+        );
+      }
+    }
 
-  if (botId) {
-    await ensurePermissionIfNeutral(target.channel, botId, 'Connect');
-  }
-
-  const adminRoles = target.channel.guild.roles.cache.filter((role) =>
-    role.id !== everyoneRoleId && (
-      role.permissions.has(PermissionFlagsBits.Administrator)
-      || role.permissions.has(PermissionFlagsBits.ManageChannels)
-    ),
-  );
-
-  for (const role of adminRoles.values()) {
-    await ensurePermissionIfNeutral(target.channel, role.id, 'Connect');
+    throw error;
   }
 
   updateTempChannelLockState(target.channel.id, true);
   return {
     ...target,
+    channel: restrictedChannel,
     record: {
       ...target.record,
       isLocked: true,
@@ -459,12 +546,17 @@ export async function lockPanelChannel(target: ResolvedPanelTarget): Promise<Res
   };
 }
 
-export async function unlockPanelChannel(target: ResolvedPanelTarget): Promise<ResolvedPanelTarget> {
+export async function unlockPanelChannel(
+  target: ResolvedPanelTarget,
+): Promise<ResolvedPanelTarget> {
   assertManageAccess(target);
 
-  await target.channel.permissionOverwrites.edit(target.channel.guild.roles.everyone.id, {
-    Connect: null,
-  });
+  await target.channel.permissionOverwrites.edit(
+    target.channel.guild.roles.everyone.id,
+    {
+      Connect: null,
+    },
+  );
 
   updateTempChannelLockState(target.channel.id, false);
   return {
@@ -492,7 +584,7 @@ export async function setPanelChannelUserLimit(
 
   await target.channel.edit({
     userLimit: limit,
-    reason: `Noi: изменение лимита комнаты пользователем ${actor.user.tag}`,
+    reason: `Pemucik: изменение лимита комнаты пользователем ${actor.user.tag}`,
   });
 
   updateTempChannelUserLimit(target.channel.id, limit);
@@ -503,7 +595,10 @@ export async function claimPanelChannel(
   target: ResolvedPanelTarget,
   actor: GuildMember,
 ): Promise<ResolvedPanelTarget> {
-  const latestTarget = await resolvePanelTargetByChannelId(actor, target.channel.id);
+  const latestTarget = await resolvePanelTargetByChannelId(
+    actor,
+    target.channel.id,
+  );
 
   if (latestTarget.record.ownerUserId === actor.id) {
     throw new PanelServiceError(
@@ -524,11 +619,18 @@ export async function claimPanelChannel(
   }
 
   if (isChannelGhosted(latestTarget.channel)) {
-    await ensurePermissionIfNeutral(latestTarget.channel, actor.id, 'ViewChannel');
+    await ensurePermissionIfNeutral(
+      latestTarget.channel,
+      actor.id,
+      'ViewChannel',
+    );
   }
 
   updateTempChannelOwner(latestTarget.channel.id, actor.id);
-  const updatedTarget = await resolvePanelTargetByChannelId(actor, latestTarget.channel.id);
+  const updatedTarget = await resolvePanelTargetByChannelId(
+    actor,
+    latestTarget.channel.id,
+  );
   await syncLinkedTempTextChannelForTarget(updatedTarget);
 
   return updatedTarget;

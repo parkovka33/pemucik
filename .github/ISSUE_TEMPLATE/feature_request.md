@@ -1,13 +1,13 @@
 ---
 name: Feature request
-about: Suggest an improvement to XenoVoice behavior or docs
+about: Suggest an improvement to Pemucik behavior or docs
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Which part of XenoVoice is this about?**
+**Which part of Pemucik is this about?**
 
 Examples: `/setup`, `/panel`, temp room cleanup, onboarding docs, support flow.
 

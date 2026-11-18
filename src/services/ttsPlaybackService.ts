@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { rm } from 'node:fs/promises';
+import { access, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,17 +11,25 @@ import {
   createAudioPlayer,
   createAudioResource,
   entersState,
+  generateDependencyReport,
   joinVoiceChannel,
   type DiscordGatewayAdapterCreator,
   type VoiceConnection,
 } from '@discordjs/voice';
-import { ChannelType, PermissionFlagsBits, type Guild, type VoiceChannel } from 'discord.js';
+import {
+  ChannelType,
+  PermissionFlagsBits,
+  type Guild,
+  type VoiceChannel,
+} from 'discord.js';
 
 import {
   TEMP_TTS_CONNECTION_READY_TIMEOUT_MS,
+  TEMP_TTS_GUILD_QUEUE_LIMIT,
   TEMP_TTS_PLAYBACK_IDLE_DISCONNECT_MS,
   TEMP_TTS_PLAYBACK_QUEUE_LIMIT,
   TEMP_TTS_PLAYBACK_TIMEOUT_MS,
+  TEMP_TTS_SYNTHESIS_TIMEOUT_MS,
 } from '../config/constants';
 import type { Logger } from '../utils/logger';
 import { findTempTtsVoicePreset } from './ttsControlService';
@@ -44,9 +52,11 @@ interface TempTtsGuildPlaybackState {
   disconnectTimer: NodeJS.Timeout | null;
   processing: boolean;
   player: ReturnType<typeof createAudioPlayer>;
+  activeVoiceChannelId: string | null;
+  activeAbortController: AbortController | null;
 }
 
-interface TempTtsPiperRuntimeConfig {
+export interface TempTtsPiperRuntimeConfig {
   command: string;
   modelEnvVarName: string;
   modelPath: string;
@@ -73,14 +83,26 @@ interface FetchedPlayableVoiceChannel {
 
 interface SkippedPlayableVoiceChannel {
   status: 'skipped';
-  reason: 'voice_channel_missing' | 'voice_channel_invalid' | 'voice_channel_empty' | 'bot_missing_permissions';
+  reason:
+    | 'voice_channel_missing'
+    | 'voice_channel_invalid'
+    | 'voice_channel_empty'
+    | 'bot_missing_permissions';
   missingPermissions?: BotVoicePermissionName[];
 }
 
 type BotVoicePermissionName = 'ViewChannel' | 'Connect' | 'Speak';
-type TempTtsPlaybackStage = 'voice_connection_ready' | 'audio_player_playing' | 'audio_player_idle';
+type TempTtsPlaybackStage =
+  | 'piper_synthesis'
+  | 'voice_connection_ready'
+  | 'audio_player_playing'
+  | 'audio_player_idle';
 
-const REQUIRED_BOT_VOICE_PERMISSIONS = ['ViewChannel', 'Connect', 'Speak'] as const satisfies readonly BotVoicePermissionName[];
+const REQUIRED_BOT_VOICE_PERMISSIONS = [
+  'ViewChannel',
+  'Connect',
+  'Speak',
+] as const satisfies readonly BotVoicePermissionName[];
 const TEMP_TTS_CONNECTION_READY_MAX_ATTEMPTS = 3;
 
 interface TempTtsPlaybackStageErrorDetails {
@@ -99,10 +121,22 @@ class TempTtsPlaybackStageError extends Error {
   }
 }
 
+class TempTtsPlaybackCancelledError extends Error {
+  public constructor() {
+    super(
+      'TTS playback was cancelled because the room was disabled, deleted, or shut down.',
+    );
+    this.name = 'TempTtsPlaybackCancelledError';
+  }
+}
+
 const guildPlaybackStates = new Map<string, TempTtsGuildPlaybackState>();
 const debuggedVoiceConnections = new WeakSet<VoiceConnection>();
 
-function readOptionalEnv(name: string, env: NodeJS.ProcessEnv = process.env): string | null {
+function readOptionalEnv(
+  name: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   const value = env[name]?.trim();
   return value && value.length > 0 ? value : null;
 }
@@ -111,7 +145,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function readNestedString(record: Record<string, unknown>, ...path: string[]): string | undefined {
+function readNestedString(
+  record: Record<string, unknown>,
+  ...path: string[]
+): string | undefined {
   let current: unknown = record;
 
   for (const segment of path) {
@@ -125,7 +162,10 @@ function readNestedString(record: Record<string, unknown>, ...path: string[]): s
   return typeof current === 'string' ? current : undefined;
 }
 
-function readNestedNumber(record: Record<string, unknown>, ...path: string[]): number | undefined {
+function readNestedNumber(
+  record: Record<string, unknown>,
+  ...path: string[]
+): number | undefined {
   let current: unknown = record;
 
   for (const segment of path) {
@@ -139,7 +179,10 @@ function readNestedNumber(record: Record<string, unknown>, ...path: string[]): n
   return typeof current === 'number' ? current : undefined;
 }
 
-function readNestedBoolean(record: Record<string, unknown>, ...path: string[]): boolean | undefined {
+function readNestedBoolean(
+  record: Record<string, unknown>,
+  ...path: string[]
+): boolean | undefined {
   let current: unknown = record;
 
   for (const segment of path) {
@@ -153,7 +196,9 @@ function readNestedBoolean(record: Record<string, unknown>, ...path: string[]): 
   return typeof current === 'boolean' ? current : undefined;
 }
 
-function summarizeVoiceConnectionState(connection: VoiceConnection): Record<string, string | number | boolean | undefined> {
+function summarizeVoiceConnectionState(
+  connection: VoiceConnection,
+): Record<string, string | number | boolean | undefined> {
   const stateRecord = connection.state as unknown;
 
   if (!isRecord(stateRecord)) {
@@ -164,10 +209,21 @@ function summarizeVoiceConnectionState(connection: VoiceConnection): Record<stri
 
   return {
     connectionStatus: connection.state.status,
-    networkingCode: readNestedNumber(stateRecord, 'networking', 'state', 'code'),
+    networkingCode: readNestedNumber(
+      stateRecord,
+      'networking',
+      'state',
+      'code',
+    ),
     networkingWs: readNestedBoolean(stateRecord, 'networking', 'state', 'ws'),
     networkingUdp: readNestedBoolean(stateRecord, 'networking', 'state', 'udp'),
-    endpoint: readNestedString(stateRecord, 'networking', 'state', 'connectionOptions', 'endpoint'),
+    endpoint: readNestedString(
+      stateRecord,
+      'networking',
+      'state',
+      'connectionOptions',
+      'endpoint',
+    ),
   };
 }
 
@@ -207,13 +263,16 @@ function attachVoiceConnectionDebugListeners(
   });
 
   connection.on('error', (error) => {
-    logger.error({
-      event: 'voice_tts_connection_error',
-      guildId,
-      voiceChannelId,
-      attemptNumber,
-      ...summarizeVoiceConnectionState(connection),
-    }, error);
+    logger.error(
+      {
+        event: 'voice_tts_connection_error',
+        guildId,
+        voiceChannelId,
+        attemptNumber,
+        ...summarizeVoiceConnectionState(connection),
+      },
+      error,
+    );
   });
 }
 
@@ -227,9 +286,9 @@ export function shouldRetryTempTtsVoiceConnectionReady(
   }
 
   return (
-    status === VoiceConnectionStatus.Signalling
-    || status === VoiceConnectionStatus.Connecting
-    || status === VoiceConnectionStatus.Disconnected
+    status === VoiceConnectionStatus.Signalling ||
+    status === VoiceConnectionStatus.Connecting ||
+    status === VoiceConnectionStatus.Disconnected
   );
 }
 
@@ -253,6 +312,102 @@ export function resolveTempTtsPiperRuntimeConfig(
     command: readOptionalEnv('PIPER_COMMAND', env) ?? 'piper',
     modelEnvVarName: preset.modelEnvVarName,
     modelPath,
+  };
+}
+
+export function findTempTtsMediaDependencyProblems(
+  dependencyReport = generateDependencyReport(),
+): string[] {
+  const problems: string[] = [];
+
+  if (/FFmpeg\s*\r?\n- not found/i.test(dependencyReport)) {
+    problems.push('FFmpeg is not available on PATH.');
+  }
+
+  const hasOpus =
+    !/- @discordjs\/opus: not found[\s\S]*- opusscript: not found/i.test(
+      dependencyReport,
+    );
+
+  if (!hasOpus) {
+    problems.push('No supported Opus encoder is installed.');
+  }
+
+  return problems;
+}
+
+async function probeExecutable(
+  command: string,
+  args: string[],
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const child = spawn(command, args, {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    let settled = false;
+
+    const finish = (available: boolean): void => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      resolve(available);
+    };
+    const timeout = setTimeout(() => {
+      child.kill();
+      finish(false);
+    }, timeoutMs);
+
+    child.once('error', () => finish(false));
+    child.once('close', (code) => finish(code === 0));
+  });
+}
+
+export interface TempTtsRuntimeInspection {
+  available: boolean;
+  config: TempTtsPiperRuntimeConfig | null;
+  problems: string[];
+}
+
+export async function inspectTempTtsRuntime(
+  voiceKey: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<TempTtsRuntimeInspection> {
+  const config = resolveTempTtsPiperRuntimeConfig(voiceKey, env);
+  const problems = findTempTtsMediaDependencyProblems();
+
+  if (!config) {
+    const preset = findTempTtsVoicePreset(voiceKey);
+    problems.push(
+      preset
+        ? `${preset.modelEnvVarName} is not configured.`
+        : `Unknown TTS voice preset: ${voiceKey}.`,
+    );
+    return { available: false, config: null, problems };
+  }
+
+  try {
+    await access(config.modelPath);
+  } catch {
+    problems.push(
+      `${config.modelEnvVarName} does not point to a readable model file.`,
+    );
+  }
+
+  if (!(await probeExecutable(config.command, ['--help']))) {
+    problems.push(
+      'The Piper executable is unavailable or failed its startup check.',
+    );
+  }
+
+  return {
+    available: problems.length === 0,
+    config,
+    problems,
   };
 }
 
@@ -288,7 +443,9 @@ function getTotalQueuedJobs(state: TempTtsGuildPlaybackState): number {
   return total;
 }
 
-function getOrCreateGuildPlaybackState(guildId: string): TempTtsGuildPlaybackState {
+function getOrCreateGuildPlaybackState(
+  guildId: string,
+): TempTtsGuildPlaybackState {
   const existingState = guildPlaybackStates.get(guildId);
 
   if (existingState) {
@@ -302,6 +459,8 @@ function getOrCreateGuildPlaybackState(guildId: string): TempTtsGuildPlaybackSta
     connectedChannelId: null,
     disconnectTimer: null,
     processing: false,
+    activeVoiceChannelId: null,
+    activeAbortController: null,
     player: createAudioPlayer({
       behaviors: {
         noSubscriber: NoSubscriberBehavior.Stop,
@@ -322,8 +481,14 @@ function clearDisconnectTimer(state: TempTtsGuildPlaybackState): void {
   state.disconnectTimer = null;
 }
 
-function destroyGuildPlaybackState(state: TempTtsGuildPlaybackState, logger?: Logger): void {
+function destroyGuildPlaybackState(
+  state: TempTtsGuildPlaybackState,
+  logger?: Logger,
+): void {
   clearDisconnectTimer(state);
+  state.activeAbortController?.abort();
+  state.activeAbortController = null;
+  state.activeVoiceChannelId = null;
   state.player.stop(true);
 
   if (state.connection) {
@@ -357,10 +522,15 @@ function scheduleDisconnect(state: TempTtsGuildPlaybackState): void {
 }
 
 function isUnknownChannelError(error: unknown): error is { code: number } {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 10003;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 10003
+  );
 }
 
-async function getMissingBotVoicePermissions(
+export async function getMissingBotVoicePermissions(
   guild: Guild,
   voiceChannel: VoiceChannel,
 ): Promise<BotVoicePermissionName[]> {
@@ -380,7 +550,9 @@ async function getMissingBotVoicePermissions(
     return [...REQUIRED_BOT_VOICE_PERMISSIONS];
   }
 
-  return REQUIRED_BOT_VOICE_PERMISSIONS.filter((permission) => !permissions.has(PermissionFlagsBits[permission]));
+  return REQUIRED_BOT_VOICE_PERMISSIONS.filter(
+    (permission) => !permissions.has(PermissionFlagsBits[permission]),
+  );
 }
 
 async function fetchPlayableVoiceChannel(
@@ -425,7 +597,10 @@ async function fetchPlayableVoiceChannel(
     };
   }
 
-  const missingPermissions = await getMissingBotVoicePermissions(guild, voiceChannel);
+  const missingPermissions = await getMissingBotVoicePermissions(
+    guild,
+    voiceChannel,
+  );
 
   if (missingPermissions.length > 0) {
     return {
@@ -441,42 +616,94 @@ async function fetchPlayableVoiceChannel(
   };
 }
 
-async function synthesizeTempTtsToAudioFile(
+export async function synthesizeTempTtsToAudioFile(
   content: string,
   runtimeConfig: TempTtsPiperRuntimeConfig,
+  options: {
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    spawnProcess?: typeof spawn;
+  } = {},
 ): Promise<string> {
-  const audioFilePath = join(tmpdir(), `xenovoice-tts-${randomUUID()}.wav`);
+  const audioFilePath = join(tmpdir(), `pemucik-tts-${randomUUID()}.wav`);
+  const spawnProcess = options.spawnProcess ?? spawn;
+  const timeoutMs = options.timeoutMs ?? TEMP_TTS_SYNTHESIS_TIMEOUT_MS;
 
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      runtimeConfig.command,
-      ['--model', runtimeConfig.modelPath, '--output_file', audioFilePath],
-      {
-        stdio: ['pipe', 'ignore', 'pipe'],
-      },
-    );
-
-    let stderr = '';
-
-    child.stderr.on('data', (chunk: Buffer | string) => {
-      stderr += chunk.toString();
-    });
-
-    child.once('error', reject);
-    child.once('close', (code) => {
-      if (code === 0) {
-        resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      if (options.signal?.aborted) {
+        reject(new TempTtsPlaybackCancelledError());
         return;
       }
 
-      reject(new Error(stderr.trim() || `Piper exited with code ${String(code)}.`));
+      const child = spawnProcess(
+        runtimeConfig.command,
+        ['--model', runtimeConfig.modelPath, '--output_file', audioFilePath],
+        {
+          stdio: ['pipe', 'ignore', 'pipe'],
+          windowsHide: true,
+        },
+      );
+      let stderr = '';
+      let settled = false;
+
+      const finish = (error?: Error): void => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeout);
+        options.signal?.removeEventListener('abort', cancel);
+
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+      const cancel = (): void => {
+        child.kill();
+        finish(new TempTtsPlaybackCancelledError());
+      };
+      const timeout = setTimeout(() => {
+        child.kill();
+        finish(
+          new TempTtsPlaybackStageError(
+            'piper_synthesis',
+            `Piper synthesis exceeded the ${String(timeoutMs)}ms timeout.`,
+          ),
+        );
+      }, timeoutMs);
+
+      options.signal?.addEventListener('abort', cancel, { once: true });
+      child.stderr?.on('data', (chunk: Buffer | string) => {
+        stderr += chunk.toString();
+      });
+      child.once('error', (error) => finish(error));
+      child.once('close', (code) => {
+        if (code === 0) {
+          finish();
+          return;
+        }
+
+        finish(
+          new TempTtsPlaybackStageError(
+            'piper_synthesis',
+            stderr.trim() || `Piper exited with code ${String(code)}.`,
+          ),
+        );
+      });
+
+      child.stdin?.write(content, 'utf8');
+      child.stdin?.end();
     });
 
-    child.stdin.write(content, 'utf8');
-    child.stdin.end();
-  });
-
-  return audioFilePath;
+    return audioFilePath;
+  } catch (error) {
+    await removeAudioFile(audioFilePath);
+    throw error;
+  }
 }
 
 async function ensureVoiceConnection(
@@ -484,6 +711,7 @@ async function ensureVoiceConnection(
   guild: Guild,
   voiceChannel: VoiceChannel,
   logger: Logger,
+  signal: AbortSignal,
 ): Promise<VoiceConnection> {
   clearDisconnectTimer(state);
 
@@ -499,6 +727,10 @@ async function ensureVoiceConnection(
   let attemptNumber = 0;
 
   while (attemptNumber < TEMP_TTS_CONNECTION_READY_MAX_ATTEMPTS) {
+    if (signal.aborted) {
+      throw new TempTtsPlaybackCancelledError();
+    }
+
     attemptNumber += 1;
 
     logger.info({
@@ -514,17 +746,28 @@ async function ensureVoiceConnection(
       connection = joinVoiceChannel({
         channelId: voiceChannel.id,
         guildId: guild.id,
-        adapterCreator: guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
+        adapterCreator:
+          guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
         selfDeaf: false,
       });
 
       connection.subscribe(state.player);
     }
 
-    attachVoiceConnectionDebugListeners(connection, logger, guild.id, voiceChannel.id, attemptNumber);
+    attachVoiceConnectionDebugListeners(
+      connection,
+      logger,
+      guild.id,
+      voiceChannel.id,
+      attemptNumber,
+    );
 
     try {
-      await entersState(connection, VoiceConnectionStatus.Ready, TEMP_TTS_CONNECTION_READY_TIMEOUT_MS);
+      await entersState(
+        connection,
+        VoiceConnectionStatus.Ready,
+        TEMP_TTS_CONNECTION_READY_TIMEOUT_MS,
+      );
       state.connection = connection;
       state.connectedChannelId = voiceChannel.id;
       return connection;
@@ -537,7 +780,13 @@ async function ensureVoiceConnection(
         state.connectedChannelId = null;
       }
 
-      if (!shouldRetryTempTtsVoiceConnectionReady(connectionStatus, attemptNumber)) {
+      if (signal.aborted) {
+        throw new TempTtsPlaybackCancelledError();
+      }
+
+      if (
+        !shouldRetryTempTtsVoiceConnectionReady(connectionStatus, attemptNumber)
+      ) {
         throw new TempTtsPlaybackStageError(
           'voice_connection_ready',
           `TTS voice connection did not reach Ready within ${String(TEMP_TTS_CONNECTION_READY_TIMEOUT_MS)}ms after ${String(attemptNumber)} attempt(s). Last status: ${connectionStatus}.`,
@@ -567,28 +816,74 @@ async function playSynthesizedAudioFile(
   voiceChannel: VoiceChannel,
   audioFilePath: string,
   logger: Logger,
+  signal: AbortSignal,
 ): Promise<void> {
-  await ensureVoiceConnection(state, guild, voiceChannel, logger);
+  await ensureVoiceConnection(state, guild, voiceChannel, logger, signal);
+
+  if (signal.aborted) {
+    throw new TempTtsPlaybackCancelledError();
+  }
 
   const resource = createAudioResource(audioFilePath);
+  let rejectPlayerError: ((error: Error) => void) | null = null;
+  const playerError = new Promise<never>((_resolve, reject) => {
+    rejectPlayerError = reject;
+  });
+  const onPlayerError = (error: Error): void => {
+    rejectPlayerError?.(error);
+  };
+  const onAbort = (): void => {
+    state.player.stop(true);
+    rejectPlayerError?.(new TempTtsPlaybackCancelledError());
+  };
+
+  state.player.once('error', onPlayerError);
+  signal.addEventListener('abort', onAbort, { once: true });
   state.player.play(resource);
 
   try {
-    await entersState(state.player, AudioPlayerStatus.Playing, TEMP_TTS_CONNECTION_READY_TIMEOUT_MS);
-  } catch {
-    throw new TempTtsPlaybackStageError(
-      'audio_player_playing',
-      `TTS audio player did not start playing within ${String(TEMP_TTS_CONNECTION_READY_TIMEOUT_MS)}ms.`,
-    );
-  }
+    try {
+      await Promise.race([
+        entersState(
+          state.player,
+          AudioPlayerStatus.Playing,
+          TEMP_TTS_CONNECTION_READY_TIMEOUT_MS,
+        ),
+        playerError,
+      ]);
+    } catch (error) {
+      if (error instanceof TempTtsPlaybackCancelledError) {
+        throw error;
+      }
 
-  try {
-    await entersState(state.player, AudioPlayerStatus.Idle, TEMP_TTS_PLAYBACK_TIMEOUT_MS);
-  } catch {
-    throw new TempTtsPlaybackStageError(
-      'audio_player_idle',
-      `TTS audio player did not finish playback within ${String(TEMP_TTS_PLAYBACK_TIMEOUT_MS)}ms.`,
-    );
+      throw new TempTtsPlaybackStageError(
+        'audio_player_playing',
+        `TTS audio player did not start playing within ${String(TEMP_TTS_CONNECTION_READY_TIMEOUT_MS)}ms.`,
+      );
+    }
+
+    try {
+      await Promise.race([
+        entersState(
+          state.player,
+          AudioPlayerStatus.Idle,
+          TEMP_TTS_PLAYBACK_TIMEOUT_MS,
+        ),
+        playerError,
+      ]);
+    } catch (error) {
+      if (error instanceof TempTtsPlaybackCancelledError) {
+        throw error;
+      }
+
+      throw new TempTtsPlaybackStageError(
+        'audio_player_idle',
+        `TTS audio player did not finish playback within ${String(TEMP_TTS_PLAYBACK_TIMEOUT_MS)}ms.`,
+      );
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    state.player.removeListener('error', onPlayerError);
   }
 }
 
@@ -623,6 +918,10 @@ async function processGuildPlaybackQueue(
         state.roomQueues.delete(selectedQueue.voiceChannelId);
       }
 
+      const abortController = new AbortController();
+      state.activeVoiceChannelId = nextJob.voiceChannelId;
+      state.activeAbortController = abortController;
+
       const runtimeConfig = resolveTempTtsPiperRuntimeConfig(nextJob.voiceKey);
 
       if (!runtimeConfig) {
@@ -634,10 +933,21 @@ async function processGuildPlaybackQueue(
           voiceChannelId: nextJob.voiceChannelId,
           voiceKey: nextJob.voiceKey,
         });
+        state.activeVoiceChannelId = null;
+        state.activeAbortController = null;
         continue;
       }
 
-      const fetchedChannel = await fetchPlayableVoiceChannel(guild, nextJob.voiceChannelId);
+      const fetchedChannel = await fetchPlayableVoiceChannel(
+        guild,
+        nextJob.voiceChannelId,
+      );
+
+      if (abortController.signal.aborted) {
+        state.activeVoiceChannelId = null;
+        state.activeAbortController = null;
+        continue;
+      }
 
       if (fetchedChannel.status === 'skipped') {
         if (fetchedChannel.reason === 'bot_missing_permissions') {
@@ -651,6 +961,8 @@ async function processGuildPlaybackQueue(
             voiceKey: nextJob.voiceKey,
             queueLimit: TEMP_TTS_PLAYBACK_QUEUE_LIMIT,
           });
+          state.activeVoiceChannelId = null;
+          state.activeAbortController = null;
           continue;
         }
 
@@ -663,32 +975,70 @@ async function processGuildPlaybackQueue(
           voiceChannelId: nextJob.voiceChannelId,
           messageLength: nextJob.content.length,
         });
+        state.activeVoiceChannelId = null;
+        state.activeAbortController = null;
         continue;
       }
 
       let audioFilePath: string | null = null;
 
       try {
-        audioFilePath = await synthesizeTempTtsToAudioFile(nextJob.content, runtimeConfig);
-        await playSynthesizedAudioFile(state, guild, fetchedChannel.channel, audioFilePath, logger);
+        audioFilePath = await synthesizeTempTtsToAudioFile(
+          nextJob.content,
+          runtimeConfig,
+          {
+            signal: abortController.signal,
+          },
+        );
+        await playSynthesizedAudioFile(
+          state,
+          guild,
+          fetchedChannel.channel,
+          audioFilePath,
+          logger,
+          abortController.signal,
+        );
       } catch (error) {
-        logger.error({
-          event: 'voice_tts_playback_failed',
-          guildId: guild.id,
-          userId: nextJob.authorId,
-          textChannelId: nextJob.textChannelId,
-          voiceChannelId: nextJob.voiceChannelId,
-          voiceKey: nextJob.voiceKey,
-          stage: error instanceof TempTtsPlaybackStageError ? error.stage : undefined,
-          connectionStatus: error instanceof TempTtsPlaybackStageError
-            ? error.details.connectionStatus
-            : state.connection?.state.status ?? undefined,
-          connectionReadyAttempts: error instanceof TempTtsPlaybackStageError
-            ? error.details.attempts
-            : undefined,
-          playerStatus: state.player.state.status,
-        }, error);
+        if (error instanceof TempTtsPlaybackCancelledError) {
+          logger.debug({
+            event: 'voice_tts_playback_cancelled',
+            guildId: guild.id,
+            userId: nextJob.authorId,
+            voiceChannelId: nextJob.voiceChannelId,
+          });
+          continue;
+        }
+
+        logger.error(
+          {
+            event: 'voice_tts_playback_failed',
+            guildId: guild.id,
+            userId: nextJob.authorId,
+            textChannelId: nextJob.textChannelId,
+            voiceChannelId: nextJob.voiceChannelId,
+            voiceKey: nextJob.voiceKey,
+            stage:
+              error instanceof TempTtsPlaybackStageError
+                ? error.stage
+                : undefined,
+            connectionStatus:
+              error instanceof TempTtsPlaybackStageError
+                ? error.details.connectionStatus
+                : (state.connection?.state.status ?? undefined),
+            connectionReadyAttempts:
+              error instanceof TempTtsPlaybackStageError
+                ? error.details.attempts
+                : undefined,
+            playerStatus: state.player.state.status,
+          },
+          error,
+        );
       } finally {
+        if (state.activeAbortController === abortController) {
+          state.activeAbortController = null;
+          state.activeVoiceChannelId = null;
+        }
+
         if (audioFilePath) {
           await removeAudioFile(audioFilePath);
         }
@@ -696,7 +1046,10 @@ async function processGuildPlaybackQueue(
     }
   } finally {
     state.processing = false;
-    shouldRestartProcessing = pickNextTempTtsRoomQueue(state.roomQueues) !== null;
+    state.activeAbortController = null;
+    state.activeVoiceChannelId = null;
+    shouldRestartProcessing =
+      pickNextTempTtsRoomQueue(state.roomQueues) !== null;
   }
 
   if (shouldRestartProcessing) {
@@ -709,7 +1062,11 @@ async function processGuildPlaybackQueue(
   }
 }
 
-export function enqueueTempTtsPlayback(guild: Guild, message: AcceptedTempTtsMessage, logger: Logger): void {
+export function enqueueTempTtsPlayback(
+  guild: Guild,
+  message: AcceptedTempTtsMessage,
+  logger: Logger,
+): void {
   const runtimeConfig = resolveTempTtsPiperRuntimeConfig(message.voiceKey);
 
   if (!runtimeConfig) {
@@ -726,6 +1083,20 @@ export function enqueueTempTtsPlayback(guild: Guild, message: AcceptedTempTtsMes
 
   const state = getOrCreateGuildPlaybackState(guild.id);
   clearDisconnectTimer(state);
+
+  if (getTotalQueuedJobs(state) >= TEMP_TTS_GUILD_QUEUE_LIMIT) {
+    logger.warn({
+      event: 'voice_tts_queue_overflow',
+      reason: 'guild_queue_limit',
+      guildId: guild.id,
+      userId: message.authorId,
+      textChannelId: message.textChannelId,
+      voiceChannelId: message.voiceChannelId,
+      voiceKey: message.voiceKey,
+      queueLimit: TEMP_TTS_GUILD_QUEUE_LIMIT,
+    });
+    return;
+  }
 
   const existingQueue = state.roomQueues.get(message.voiceChannelId);
   const roomQueue = existingQueue ?? {
@@ -771,7 +1142,10 @@ export function enqueueTempTtsPlayback(guild: Guild, message: AcceptedTempTtsMes
   }
 }
 
-export function cleanupTempTtsPlaybackForVoiceChannel(guildId: string, voiceChannelId: string): boolean {
+export function cleanupTempTtsPlaybackForVoiceChannel(
+  guildId: string,
+  voiceChannelId: string,
+): boolean {
   const state = guildPlaybackStates.get(guildId);
 
   if (!state) {
@@ -781,8 +1155,13 @@ export function cleanupTempTtsPlaybackForVoiceChannel(guildId: string, voiceChan
   clearDisconnectTimer(state);
   const removedQueuedRoom = state.roomQueues.delete(voiceChannelId);
   const disconnectedActiveRoom = state.connectedChannelId === voiceChannelId;
+  const cancelledActiveRoom = state.activeVoiceChannelId === voiceChannelId;
 
-  if (disconnectedActiveRoom) {
+  if (cancelledActiveRoom) {
+    state.activeAbortController?.abort();
+  }
+
+  if (disconnectedActiveRoom || cancelledActiveRoom) {
     state.player.stop(true);
 
     if (state.connection) {
@@ -793,11 +1172,15 @@ export function cleanupTempTtsPlaybackForVoiceChannel(guildId: string, voiceChan
     state.connectedChannelId = null;
   }
 
-  if (!state.processing && state.roomQueues.size === 0 && state.connectedChannelId === null) {
+  if (
+    !state.processing &&
+    state.roomQueues.size === 0 &&
+    state.connectedChannelId === null
+  ) {
     guildPlaybackStates.delete(guildId);
   }
 
-  return removedQueuedRoom || disconnectedActiveRoom;
+  return removedQueuedRoom || disconnectedActiveRoom || cancelledActiveRoom;
 }
 
 export function destroyAllTempTtsPlayback(logger?: Logger): void {
@@ -808,7 +1191,9 @@ export function destroyAllTempTtsPlayback(logger?: Logger): void {
   guildPlaybackStates.clear();
 }
 
-export function getTempTtsPlaybackStateSummary(guildId: string): TempTtsPlaybackStateSummary | null {
+export function getTempTtsPlaybackStateSummary(
+  guildId: string,
+): TempTtsPlaybackStateSummary | null {
   const state = guildPlaybackStates.get(guildId);
 
   if (!state) {
@@ -822,7 +1207,9 @@ export function getTempTtsPlaybackStateSummary(guildId: string): TempTtsPlayback
   };
 }
 
-export function seedTempTtsPlaybackStateForTests(input: SeedTempTtsPlaybackStateForTestsInput): void {
+export function seedTempTtsPlaybackStateForTests(
+  input: SeedTempTtsPlaybackStateForTestsInput,
+): void {
   const state = getOrCreateGuildPlaybackState(input.guildId);
   state.roomQueues.clear();
 
@@ -835,12 +1222,14 @@ export function seedTempTtsPlaybackStateForTests(input: SeedTempTtsPlaybackState
 
   state.connectedChannelId = input.connectedChannelId ?? null;
   state.processing = input.processing ?? false;
+  state.activeVoiceChannelId = null;
+  state.activeAbortController = null;
   state.connection = input.connectedChannelId
-    ? {
+    ? ({
         destroy: () => {
           input.onDestroyConnection?.();
         },
-      } as VoiceConnection
+      } as VoiceConnection)
     : null;
 }
 
@@ -852,10 +1241,13 @@ function startGuildPlaybackProcessing(
   state.processing = true;
 
   void processGuildPlaybackQueue(guild, logger, state).catch((error) => {
-    logger.error({
-      event: 'voice_tts_playback_failed',
-      guildId: guild.id,
-      connectedChannelId: state.connectedChannelId ?? undefined,
-    }, error);
+    logger.error(
+      {
+        event: 'voice_tts_playback_failed',
+        guildId: guild.id,
+        connectedChannelId: state.connectedChannelId ?? undefined,
+      },
+      error,
+    );
   });
 }

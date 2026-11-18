@@ -7,7 +7,7 @@ import { closeDatabase, getDatabase } from '../../src/db/database';
 export function setupTestDatabase(): { cleanup: () => void } {
   closeDatabase();
 
-  const tempDirectory = mkdtempSync(join(tmpdir(), 'xenovoice-tests-'));
+  const tempDirectory = mkdtempSync(join(tmpdir(), 'pemucik-tests-'));
   const databasePath = join(tempDirectory, 'test.sqlite');
   const schemaPath = resolve(process.cwd(), 'src/db/schema.sql');
   const schema = readFileSync(schemaPath, 'utf8');

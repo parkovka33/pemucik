@@ -1,0 +1,29 @@
+# Feature Map
+
+Status is based on static inspection and repository tests, not a live Discord run. “Implemented” means code is on the active runtime path; it does not mean live-verified.
+
+| Feature | Entry points / implementation | Data, permissions, intents | Status and limitations |
+|---|---|---|---|
+| Server setup | Active `/setup`; `commands/setup.ts`, `setupService.ts` | `guild_settings`; caller requires `Administrator`; bot validates Manage Channels, Move Members, View Channel, Connect, Send Messages; `Guilds`, `GuildMembers` | **Implemented.** Creates/reuses category and generator and persists defaults. Existing generator is only reused when it belongs to the resolved category. |
+| Join-to-create rooms | `voiceStateUpdate`; `tempChannelService`, `cooldownService`, `KeyedSerialExecutor` | `guild_settings`, `temp_channels`, `user_cooldowns`, `metrics`; bot needs channel creation and Move Members; `GuildVoiceStates`, `GuildMembers` | **Implemented.** Generator work is serialized per guild; one tracked room per owner and cooldown/capacity checks remain. Crash compensation after a persistence failure is still blocked by protected deletion policy. |
+| Safe empty-room cleanup and recovery | `voiceStateUpdate`, `channelDelete`, `ready`; cleanup/recovery services | `temp_channels`, linked text and TTS artifacts; Manage Channels; `GuildVoiceStates` | **Implemented.** DB confirmation precedes deletion. Current delay is explicitly 0 ms, so room deletion is immediate after leave/re-fetch. |
+| Active room controls | Active `/voice name|lock|unlock|limit|claim|transfer|permit|reject|status|bitrate|ghost|unghost|nsfw|region|tts|invite`; `voice.ts`, panel/voice-control/TTS services | `temp_channels`; owner or Manage Channels/Administrator; various channel/manage permissions; message intents for TTS | **Implemented.** Controls target the caller’s current tracked room or owned room; admin overrides are supported. `/voice lfm` is intentionally hidden and returns a disabled message only for stale registrations. |
+| Panel components | Retained `/panel` and legacy standalone command files; active `xv:panel:*` component dispatch | `temp_channels`, metrics; same room authorization | **Partially implemented.** Components are live if an old panel message exists, but no currently registered command creates a panel, making new use unreachable from active slash commands. |
+| Defaults bitrate | Active `/set bitrate`, `/reset bitrate`; `set.ts`, `reset.ts` | `guild_settings.default_bitrate`; `Administrator`; `Guilds` | **Implemented.** Validates against guild maximum; `/set` provides autocomplete. |
+| Support information | Active `/support`; `support.ts` | Optional support/donation env URLs; no special intent | **Implemented.** Ephemeral embed with dynamic avatar-derived color. |
+| Linked temporary text channels | Retained `/voice text` behavior/service and lifecycle synchronization | `temp_text_channels`, `temp_channels`; text-channel permissions; `GuildVoiceStates` | **Unused or unreachable.** It is intentionally removed from the active slash surface, but cleanup/sync safeguards still run for stored legacy mappings. |
+| Persistent shared interface | Retained `/interface`, interface service/panel/interaction modules | interface fields in `guild_settings`; channel permissions; components | **Unused or unreachable.** It is not registered/restored; interactions are intercepted with a deprecation message. Metadata remains intentionally dormant. |
+| Local Piper TTS settings | Active `/voice tts`; `ttsControlService`, `ttsPlaybackService` runtime preflight | `temp_tts_settings` linked to `temp_channels`; owner/admin; Piper model configuration | **Implemented, live verification pending.** Enabling fails closed unless the selected model, Piper, FFmpeg, and Opus support are available. Partial updates preserve unrelated settings. |
+| TTS message intake and playback | Active `messageCreate.ts`, intake/playback services, `@discordjs/voice` | tracked native voice chat or legacy linked text; `GuildMessages`, privileged `MessageContent`, voice permissions, Piper/FFmpeg, UDP | **Implemented, live verification pending.** The author must be inside the exact tracked room. User throttling, bounded room/guild queues, guild-serialized playback, synthesis timeout, cancellation, and temp-file cleanup are active. |
+| Migration/backup operations | `db:migrate`, `createMigrationBackup.ts` | SQLite file and filesystem | **Implemented operational tooling.** Migration script is not versioned; backup is intentionally not exposed as an npm script. |
+| Dynamic embed color | Various embed-producing commands/services; `embedColor.ts` | Discord CDN avatar fetch; Node `fetch` | **Implemented.** A network fetch and custom PNG decoder occur on first avatar URL use, with fallback color. |
+
+## Command surface reconciliation
+
+Active registration is derived solely from `src/commands/index.ts`: `/setup`, `/support`, `/voice`, `/set`, `/reset`. Files for `/claim`, `/help`, `/interface`, `/limit`, `/lock`, `/panel`, `/rename`, and `/unlock` are retained but absent from that list. The interaction dispatcher separately treats a stale `/help` as disabled; the grouped `/voice` command handles a stale `lfm` subcommand as disabled.
+
+## Known verification gaps
+
+The 89-test suite covers repositories, setup/channel construction, recovery/delete cleanup, keyed serialization, response handling, voice controls, TTS intake and permission safeguards, and Piper timeout/file-cleanup paths. `npm test` builds and runs the compiled suite. It does not exercise the real Discord gateway, voice UDP, FFmpeg playback, PM2, or the VPS filesystem. No live Discord verification was run for this recovery.
+
+**In simple terms:** The TTS control and local failure paths are tested, but only a disposable Discord guild can prove the real voice handshake and audible playback.

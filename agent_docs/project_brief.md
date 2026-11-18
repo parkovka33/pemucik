@@ -1,6 +1,6 @@
 # Project Brief (Persistent)
 
-- **Product vision:** XenoVoice is a clean, friendly, free-first Discord bot that creates temporary voice rooms on demand and keeps servers uncluttered without requiring a website.
+- **Product vision:** Pemucik is a clean, friendly, free-first Discord bot that creates temporary voice rooms on demand and keeps servers uncluttered without requiring a website.
 - **Target audience:** Discord server owners/admins running creator, gaming, hobby, study, fan, or social communities that need quick voice rooms without admin micromanagement.
 - **Primary value:** Users join one generator channel, get their own temporary room automatically, control it inside Discord, and the room disappears when empty.
 

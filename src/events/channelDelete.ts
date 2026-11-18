@@ -14,13 +14,23 @@ export function registerChannelDeleteHandler(client: Client, logger: Logger): vo
 
     try {
       if (channel.type === ChannelType.GuildVoice) {
-        const cleaned = await cleanupDeletedTrackedVoiceChannel(channel.guild, channel.id);
+        const cleanupResult = await cleanupDeletedTrackedVoiceChannel(channel.guild, channel.id);
 
-        if (cleaned) {
+        if (cleanupResult.status === 'completed') {
           logger.info({
             event: 'tracked_temp_voice_channel_deleted_recovered',
             guildId: channel.guild.id,
             channelId: channel.id,
+          });
+        } else if (cleanupResult.status === 'retry_required') {
+          logger.warn({
+            event: 'tracked_temp_voice_channel_cleanup_retry_required',
+            guildId: channel.guild.id,
+            channelId: channel.id,
+            stage: cleanupResult.stage,
+            error: cleanupResult.error instanceof Error
+              ? cleanupResult.error.message
+              : String(cleanupResult.error),
           });
         }
 

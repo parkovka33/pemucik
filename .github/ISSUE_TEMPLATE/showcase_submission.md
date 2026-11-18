@@ -1,13 +1,13 @@
 ---
 name: Showcase submission
-about: Share how you use XenoVoice in a real Discord server
+about: Share how you use Pemucik in a real Discord server
 title: '[Showcase] '
 labels: ''
 assignees: ''
 
 ---
 
-**What kind of server are you using XenoVoice in?**
+**What kind of server are you using Pemucik in?**
 
 Share the community type and a short description.
 
@@ -17,7 +17,7 @@ Share the community type and a short description.
 - Language:
 - Main use case:
 
-**Which XenoVoice features are you using?**
+**Which Pemucik features are you using?**
 
 Examples: `/setup`, Join-to-Create, `/panel`, rename, lock/unlock, user limits.
 
@@ -27,7 +27,7 @@ Add screenshots or short clips if you are comfortable sharing them.
 
 **What worked well?**
 
-Call out the parts of XenoVoice that helped most.
+Call out the parts of Pemucik that helped most.
 
 **What was hard or unclear?**
 

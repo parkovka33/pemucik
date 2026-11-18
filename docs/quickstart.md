@@ -1,4 +1,4 @@
-# XenoVoice Quickstart
+# Pemucik Quickstart
 
 This quickstart is for a server admin who wants the shortest path from clone to a working Join-to-Create setup.
 
@@ -10,7 +10,7 @@ This quickstart is for a server admin who wants the shortest path from clone to 
    - `DISCORD_TOKEN`
    - `DISCORD_CLIENT_ID`
    - `DISCORD_GUILD_ID` for development-only command registration
-4. Keep `DATABASE_PATH` as-is unless you need a custom location.
+4. Keep `DATABASE_PATH` as-is unless you need a custom location. Existing pre-rebrand installs that relied on the old default filename are detected automatically when this variable is unset.
 
 ## 2. Install and start locally
 
@@ -25,7 +25,7 @@ npm run dev
 
 ## 3. Invite the bot with the right permissions
 
-XenoVoice needs these permissions for the MVP:
+Pemucik needs these permissions for the MVP:
 
 - `Manage Channels`
 - `Move Members`
@@ -41,16 +41,16 @@ For early testing, `Administrator` is the simplest setup because it avoids permi
 1. Join your test server as an admin.
 2. Run `/setup` with at least `editable`.
 3. Optionally set:
-   - `category`, if temp rooms should be created outside the default XenoVoice category
+   - `category`, if temp rooms should be created outside the default Pemucik category
    - `permission`, if temp rooms should clone Join-to-Create overwrites instead of inheriting category permissions
-4. Confirm that XenoVoice creates or reuses:
-   - the `XenoVoice` category
+4. Confirm that Pemucik creates or reuses:
+   - the `Pemucik` category
    - the `➕ Войти, чтобы создать` generator voice channel
 
 ## 5. Verify the core loop
 
 1. Join the generator voice channel.
-2. Confirm that XenoVoice creates a temporary voice room.
+2. Confirm that Pemucik creates a temporary voice room.
 3. Confirm that you are moved into the new room.
 4. Run `/voice rename` while connected to the room.
 5. Check `/voice lock`, `/voice unlock`, `/voice limit`, and `/voice claim`.

@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with XenoVoice bot behavior, docs, or setup
+about: Report a problem with Pemucik bot behavior, docs, or setup
 title: ''
 labels: ''
 assignees: ''
@@ -13,7 +13,7 @@ A clear and concise description of the problem.
 
 **Files / sections affected**
 
-- File(s): e.g. `src/events/voiceStateUpdate.ts`, `README.md`, `docs/TROUBLESHOOTING.md`
+- File(s): e.g. `src/events/voiceStateUpdate.ts`, `README.md`, `docs/troubleshooting.md`
 - Command / flow: e.g. `/setup`, `/panel`, temp room cleanup, command registration
 
 **Your environment**
@@ -36,7 +36,7 @@ A clear and concise description of the unexpected behavior or confusing result.
 
 **What you expected instead**
 
-What outcome you expected from XenoVoice.
+What outcome you expected from Pemucik.
 
 **Relevant logs / snippets**
 

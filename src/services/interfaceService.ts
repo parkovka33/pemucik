@@ -77,7 +77,7 @@ async function fetchExistingInterfaceChannel(guild: Guild, channelId: string | n
   if (channel.type !== ChannelType.GuildText) {
     throw new InterfaceServiceError(
       'INTERFACE_CHANNEL_INVALID',
-      'Сохранённый интерфейс Noi больше не является текстовым каналом.',
+      'Сохранённый интерфейс Pemucik больше не является текстовым каналом.',
     );
   }
 
@@ -90,7 +90,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
   if (!settings) {
     throw new InterfaceServiceError(
       'SETTINGS_NOT_FOUND',
-      'Сначала запустите `/setup`, чтобы Noi знал, где размещать интерфейс.',
+      'Сначала запустите `/setup`, чтобы Pemucik знал, где размещать интерфейс.',
     );
   }
 
@@ -113,7 +113,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
   if (!category || category.type !== ChannelType.GuildCategory) {
     throw new InterfaceServiceError(
       'CATEGORY_NOT_FOUND',
-      'Не удалось найти категорию Noi. Запустите `/setup` ещё раз.',
+      'Не удалось найти категорию Pemucik. Запустите `/setup` ещё раз.',
     );
   }
 
@@ -138,7 +138,7 @@ async function ensureInterfaceChannel(guild: Guild): Promise<TextChannel> {
         ],
       },
     ],
-    reason: 'Noi: создание постоянного интерфейсного канала',
+    reason: 'Pemucik: создание постоянного интерфейсного канала',
   });
 }
 

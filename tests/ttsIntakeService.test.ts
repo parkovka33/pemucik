@@ -3,12 +3,19 @@ import test from 'node:test';
 
 import { ChannelType, Collection } from 'discord.js';
 
-import { DEFAULT_NAME_TEMPLATE, TEMP_TTS_MAX_MESSAGE_LENGTH } from '../src/config/constants';
+import {
+  DEFAULT_NAME_TEMPLATE,
+  TEMP_TTS_MAX_MESSAGE_LENGTH,
+} from '../src/config/constants';
 import { upsertGuildSettings } from '../src/db/repositories/guildSettingsRepo';
 import { upsertTempTtsSettings } from '../src/db/repositories/tempTtsSettingsRepo';
 import { upsertTempTextChannel } from '../src/db/repositories/tempTextChannelsRepo';
 import { insertTempChannel } from '../src/db/repositories/tempChannelsRepo';
-import { resolveTempTtsMessageIntake } from '../src/services/ttsIntakeService';
+import {
+  consumeTempTtsUserCooldown,
+  resetTempTtsUserCooldownsForTests,
+  resolveTempTtsMessageIntake,
+} from '../src/services/ttsIntakeService';
 import { setupTestDatabase } from './helpers/testDatabase';
 
 function seedTrackedRoom(channelId = 'voice-1'): void {
@@ -37,7 +44,10 @@ function seedTrackedRoom(channelId = 'voice-1'): void {
   });
 }
 
-function linkTrackedTextChannel(voiceChannelId = 'voice-1', textChannelId = 'text-1'): void {
+function linkTrackedTextChannel(
+  voiceChannelId = 'voice-1',
+  textChannelId = 'text-1',
+): void {
   upsertTempTextChannel({
     voiceChannelId,
     textChannelId,
@@ -45,7 +55,11 @@ function linkTrackedTextChannel(voiceChannelId = 'voice-1', textChannelId = 'tex
   });
 }
 
-function enableTrackedRoomTts(voiceChannelId = 'voice-1', enabled = true, voiceKey = 'default'): void {
+function enableTrackedRoomTts(
+  voiceChannelId = 'voice-1',
+  enabled = true,
+  voiceKey = 'default',
+): void {
   upsertTempTtsSettings({
     voiceChannelId,
     guildId: 'guild-1',
@@ -54,7 +68,11 @@ function enableTrackedRoomTts(voiceChannelId = 'voice-1', enabled = true, voiceK
   });
 }
 
-function createMessage(content: string, fetchResult: unknown, channelId = 'voice-1') {
+function createMessage(
+  content: string,
+  fetchResult: unknown,
+  channelId = 'voice-1',
+) {
   return {
     author: {
       id: 'member-1',
@@ -64,6 +82,9 @@ function createMessage(content: string, fetchResult: unknown, channelId = 'voice
     content,
     guildId: 'guild-1',
     guild: {
+      voiceStates: {
+        cache: new Collection([['member-1', { channelId: 'voice-1' }]]),
+      },
       channels: {
         fetch: async (channelId: string) => {
           assert.equal(channelId, 'voice-1');
@@ -76,7 +97,10 @@ function createMessage(content: string, fetchResult: unknown, channelId = 'voice
 
 function assertSkipped(
   result: Awaited<ReturnType<typeof resolveTempTtsMessageIntake>>,
-): asserts result is Extract<Awaited<ReturnType<typeof resolveTempTtsMessageIntake>>, { status: 'skipped' }> {
+): asserts result is Extract<
+  Awaited<ReturnType<typeof resolveTempTtsMessageIntake>>,
+  { status: 'skipped' }
+> {
   assert.equal(result.status, 'skipped');
 }
 
@@ -87,16 +111,13 @@ test('resolveTempTtsMessageIntake accepts a normalized native voice-chat message
     seedTrackedRoom();
     enableTrackedRoomTts('voice-1', true, 'ru-alt');
 
-    const result = await resolveTempTtsMessageIntake(createMessage(
-      '  hello    world  ',
-      {
+    const result = await resolveTempTtsMessageIntake(
+      createMessage('  hello    world  ', {
         id: 'voice-1',
         type: ChannelType.GuildVoice,
-        members: new Collection([
-          ['member-1', { id: 'member-1' }],
-        ]),
-      },
-    ) as never);
+        members: new Collection([['member-1', { id: 'member-1' }]]),
+      }) as never,
+    );
 
     assert.deepEqual(result, {
       status: 'accepted',
@@ -112,6 +133,39 @@ test('resolveTempTtsMessageIntake accepts a normalized native voice-chat message
   }
 });
 
+test('resolveTempTtsMessageIntake requires the author to be connected to the exact tracked room', async () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedTrackedRoom();
+    enableTrackedRoomTts();
+    const message = createMessage('hello world', {
+      id: 'voice-1',
+      type: ChannelType.GuildVoice,
+      members: new Collection([['someone-else', { id: 'someone-else' }]]),
+    });
+    message.guild.voiceStates.cache.set('member-1', { channelId: 'voice-2' });
+
+    const result = await resolveTempTtsMessageIntake(message as never);
+
+    assertSkipped(result);
+    assert.equal(result.reason, 'author_not_in_voice_channel');
+  } finally {
+    cleanup();
+  }
+});
+
+test('consumeTempTtsUserCooldown limits repeated accepted messages per guild and user', () => {
+  resetTempTtsUserCooldownsForTests();
+
+  assert.equal(consumeTempTtsUserCooldown('guild-1', 'member-1', 1_000), true);
+  assert.equal(consumeTempTtsUserCooldown('guild-1', 'member-1', 1_500), false);
+  assert.equal(consumeTempTtsUserCooldown('guild-1', 'member-2', 1_500), true);
+  assert.equal(consumeTempTtsUserCooldown('guild-1', 'member-1', 4_000), true);
+
+  resetTempTtsUserCooldownsForTests();
+});
+
 test('resolveTempTtsMessageIntake accepts a linked temp-text message as a legacy fallback', async () => {
   const { cleanup } = setupTestDatabase();
 
@@ -120,17 +174,17 @@ test('resolveTempTtsMessageIntake accepts a linked temp-text message as a legacy
     linkTrackedTextChannel();
     enableTrackedRoomTts();
 
-    const result = await resolveTempTtsMessageIntake(createMessage(
-      'hello world',
-      {
-        id: 'voice-1',
-        type: ChannelType.GuildVoice,
-        members: new Collection([
-          ['member-1', { id: 'member-1' }],
-        ]),
-      },
-      'text-1',
-    ) as never);
+    const result = await resolveTempTtsMessageIntake(
+      createMessage(
+        'hello world',
+        {
+          id: 'voice-1',
+          type: ChannelType.GuildVoice,
+          members: new Collection([['member-1', { id: 'member-1' }]]),
+        },
+        'text-1',
+      ) as never,
+    );
 
     assert.deepEqual(result, {
       status: 'accepted',
@@ -153,17 +207,17 @@ test('resolveTempTtsMessageIntake skips messages outside tracked native or linke
     seedTrackedRoom();
     enableTrackedRoomTts();
 
-    const result = await resolveTempTtsMessageIntake(createMessage(
-      'hello world',
-      {
-        id: 'voice-1',
-        type: ChannelType.GuildVoice,
-        members: new Collection([
-          ['member-1', { id: 'member-1' }],
-        ]),
-      },
-      'text-1',
-    ) as never);
+    const result = await resolveTempTtsMessageIntake(
+      createMessage(
+        'hello world',
+        {
+          id: 'voice-1',
+          type: ChannelType.GuildVoice,
+          members: new Collection([['member-1', { id: 'member-1' }]]),
+        },
+        'text-1',
+      ) as never,
+    );
 
     assert.deepEqual(result, {
       status: 'skipped',
@@ -184,16 +238,13 @@ test('resolveTempTtsMessageIntake skips linked temp-text messages when room TTS 
     seedTrackedRoom();
     enableTrackedRoomTts('voice-1', false, 'default');
 
-    const result = await resolveTempTtsMessageIntake(createMessage(
-      'hello world',
-      {
+    const result = await resolveTempTtsMessageIntake(
+      createMessage('hello world', {
         id: 'voice-1',
         type: ChannelType.GuildVoice,
-        members: new Collection([
-          ['member-1', { id: 'member-1' }],
-        ]),
-      },
-    ) as never);
+        members: new Collection([['member-1', { id: 'member-1' }]]),
+      }) as never,
+    );
 
     assert.deepEqual(result, {
       status: 'skipped',
@@ -218,17 +269,21 @@ test('resolveTempTtsMessageIntake skips empty, command-like, and too-long messag
     const voiceChannel = {
       id: 'voice-1',
       type: ChannelType.GuildVoice,
-      members: new Collection([
-        ['member-1', { id: 'member-1' }],
-      ]),
+      members: new Collection([['member-1', { id: 'member-1' }]]),
     };
 
-    const emptyResult = await resolveTempTtsMessageIntake(createMessage('   ', voiceChannel) as never);
-    const commandLikeResult = await resolveTempTtsMessageIntake(createMessage('/voice status', voiceChannel) as never);
-    const tooLongResult = await resolveTempTtsMessageIntake(createMessage(
-      'a'.repeat(TEMP_TTS_MAX_MESSAGE_LENGTH + 1),
-      voiceChannel,
-    ) as never);
+    const emptyResult = await resolveTempTtsMessageIntake(
+      createMessage('   ', voiceChannel) as never,
+    );
+    const commandLikeResult = await resolveTempTtsMessageIntake(
+      createMessage('/voice status', voiceChannel) as never,
+    );
+    const tooLongResult = await resolveTempTtsMessageIntake(
+      createMessage(
+        'a'.repeat(TEMP_TTS_MAX_MESSAGE_LENGTH + 1),
+        voiceChannel,
+      ) as never,
+    );
 
     assertSkipped(emptyResult);
     assert.equal(emptyResult.reason, 'empty_content');
@@ -249,22 +304,22 @@ test('resolveTempTtsMessageIntake skips linked temp-text messages when the track
     seedTrackedRoom();
     enableTrackedRoomTts();
 
-    const missingResult = await resolveTempTtsMessageIntake(createMessage('hello world', null) as never);
-    const invalidResult = await resolveTempTtsMessageIntake(createMessage(
-      'hello world',
-      {
+    const missingResult = await resolveTempTtsMessageIntake(
+      createMessage('hello world', null) as never,
+    );
+    const invalidResult = await resolveTempTtsMessageIntake(
+      createMessage('hello world', {
         id: 'voice-1',
         type: ChannelType.GuildText,
-      },
-    ) as never);
-    const emptyResult = await resolveTempTtsMessageIntake(createMessage(
-      'hello world',
-      {
+      }) as never,
+    );
+    const emptyResult = await resolveTempTtsMessageIntake(
+      createMessage('hello world', {
         id: 'voice-1',
         type: ChannelType.GuildVoice,
         members: new Collection(),
-      },
-    ) as never);
+      }) as never,
+    );
 
     assertSkipped(missingResult);
     assert.equal(missingResult.reason, 'voice_channel_missing');

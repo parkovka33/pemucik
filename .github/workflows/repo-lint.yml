@@ -22,10 +22,10 @@ jobs:
           test -f agent_docs/project_brief.md
           test -f agent_docs/tech_stack.md
           test -f agent_docs/testing.md
-          test -f docs/LISTING.md
-          test -f docs/QUICKSTART.md
-          test -f docs/RELEASE-CHECKLIST.md
-          test -f docs/TROUBLESHOOTING.md
+          test -f docs/listing.md
+          test -f docs/quickstart.md
+          test -f docs/release-checklist.md
+          test -f docs/troubleshooting.md
           test -f .github/GOVERNANCE.md
           test -f .github/SUPPORT.md
           test -f .github/FAQ.md
@@ -49,7 +49,7 @@ jobs:
       - name: Reject stale template-era references
         run: |
           if grep -rEn --exclude=repo-lint.yml "Vibe-Coding Prompt Template|templates/|part[0-9-].*\.md|docs/freshness-policy\.md|docs/golden-path-checklist\.md|docs/claude-agent-teams\.md|docs/cursor-cloud-agents\.md" README.md docs/ agent_docs/ .github/; then
-            echo "ERROR: Stale template-era reference found. Update the repo docs/workflows to XenoVoice paths and terminology."
+            echo "ERROR: Stale template-era reference found. Update the repo docs/workflows to Pemucik paths and terminology."
             exit 1
           fi
 

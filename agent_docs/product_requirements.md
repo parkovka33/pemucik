@@ -5,9 +5,9 @@ This file captures the original MVP product baseline.
 The current repository has already moved somewhat beyond that baseline, so use this file for product intent and guardrails, and use `README.md` plus `MEMORY.md` for the current live command surface.
 
 ## Product Overview
-- **App Name:** XenoVoice
+- **App Name:** Pemucik
 - **Version:** MVP
-- **One-line description:** XenoVoice helps Discord servers create temporary voice rooms on demand, without server clutter and without aggressive premium paywalls.
+- **One-line description:** Pemucik helps Discord servers create temporary voice rooms on demand, without server clutter and without aggressive premium paywalls.
 - **Tagline:** Free-first temporary voice channels for Discord communities.
 - **Primary platform:** Discord only
 - **Launch goal:** Bring the MVP to a working, testable state.
@@ -15,7 +15,7 @@ The current repository has already moved somewhat beyond that baseline, so use t
 - **Budget constraint:** Maximum $10/month for hosting and infrastructure
 
 ## Primary User Story
-“Meet Alex, an admin of a creator/community Discord server. Members often want to start quick voice chats, but the server becomes cluttered if Alex creates many permanent channels. Alex adds XenoVoice and sets up one Join-to-Create channel. Now users join that channel, XenoVoice creates a temporary voice room for them, and the channel disappears when empty. The server stays clean, users get flexible voice spaces, and Alex does not need to manage everything manually.”
+“Meet Alex, an admin of a creator/community Discord server. Members often want to start quick voice chats, but the server becomes cluttered if Alex creates many permanent channels. Alex adds Pemucik and sets up one Join-to-Create channel. Now users join that channel, Pemucik creates a temporary voice room for them, and the channel disappears when empty. The server stays clean, users get flexible voice spaces, and Alex does not need to manage everything manually.”
 
 ## Who It Is For
 ### Primary User
@@ -45,7 +45,7 @@ Community Discord server admins and owners who manage active servers where membe
 ## Must-Have MVP Features
 
 ### 1. Join-to-Create Temporary Voice Channel
-- **What:** Admin creates a special voice channel. When a user joins it, XenoVoice creates a new temporary voice channel.
+- **What:** Admin creates a special voice channel. When a user joins it, Pemucik creates a new temporary voice channel.
 - **User Story:** As a server member, I want to join one channel and automatically get my own voice room so that I can start talking without waiting for an admin.
 - **Priority:** P0 — Critical
 - **Success Criteria:**
@@ -56,7 +56,7 @@ Community Discord server admins and owners who manage active servers where membe
   - Bot handles errors with a friendly message or log
 
 ### 2. Auto-Delete Empty Temporary Channels
-- **What:** XenoVoice deletes temporary voice channels when they become empty.
+- **What:** Pemucik deletes temporary voice channels when they become empty.
 - **User Story:** As an admin, I want unused temporary channels to disappear automatically so that my server stays clean.
 - **Priority:** P0 — Critical
 - **Success Criteria:**
@@ -144,7 +144,7 @@ Community Discord server admins and owners who manage active servers where membe
 
 ### MVP Definition of Success
 The MVP is successful if:
-- a new admin can set up XenoVoice without help
+- a new admin can set up Pemucik without help
 - a user can create a temporary voice channel by joining the generator
 - the creator can rename, lock/unlock, and set a user limit
 - empty temporary channels are deleted reliably
@@ -211,7 +211,7 @@ The product must not:
 - use placeholder production text
 - ship half-working features
 - rely on a setup flow only the developer understands
-- delete channels XenoVoice did not create
+- delete channels Pemucik did not create
 - break admin permissions
 - ignore Discord API rate limits
 - require a website for MVP

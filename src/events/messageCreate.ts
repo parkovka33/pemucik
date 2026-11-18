@@ -1,6 +1,9 @@
 import type { Client } from 'discord.js';
 
-import { resolveTempTtsMessageIntake } from '../services/ttsIntakeService';
+import {
+  consumeTempTtsUserCooldown,
+  resolveTempTtsMessageIntake,
+} from '../services/ttsIntakeService';
 import { enqueueTempTtsPlayback } from '../services/ttsPlaybackService';
 import type { Logger } from '../utils/logger';
 
@@ -10,7 +13,10 @@ const QUIET_SKIP_REASONS = new Set([
   'not_tracked_tts_channel',
 ]);
 
-export function registerMessageCreateHandler(client: Client, logger: Logger): void {
+export function registerMessageCreateHandler(
+  client: Client,
+  logger: Logger,
+): void {
   client.on('messageCreate', async (message) => {
     try {
       const result = await resolveTempTtsMessageIntake(message);
@@ -32,6 +38,25 @@ export function registerMessageCreateHandler(client: Client, logger: Logger): vo
         return;
       }
 
+      const guild = message.guild;
+
+      if (!guild) {
+        return;
+      }
+
+      if (!consumeTempTtsUserCooldown(result.guildId, result.authorId)) {
+        logger.debug({
+          event: 'voice_tts_message_skipped',
+          reason: 'rate_limited',
+          guildId: result.guildId,
+          userId: result.authorId,
+          textChannelId: result.textChannelId,
+          voiceChannelId: result.voiceChannelId,
+          messageLength: result.content.length,
+        });
+        return;
+      }
+
       logger.info({
         event: 'voice_tts_message_ready',
         guildId: result.guildId,
@@ -42,20 +67,17 @@ export function registerMessageCreateHandler(client: Client, logger: Logger): vo
         messageLength: result.content.length,
       });
 
-      const guild = message.guild;
-
-      if (!guild) {
-        return;
-      }
-
       enqueueTempTtsPlayback(guild, result, logger);
     } catch (error) {
-      logger.error({
-        event: 'voice_tts_message_intake_failed',
-        guildId: message.guildId ?? undefined,
-        userId: message.author?.id,
-        textChannelId: message.channelId,
-      }, error);
+      logger.error(
+        {
+          event: 'voice_tts_message_intake_failed',
+          guildId: message.guildId ?? undefined,
+          userId: message.author?.id,
+          textChannelId: message.channelId,
+        },
+        error,
+      );
     }
   });
 }

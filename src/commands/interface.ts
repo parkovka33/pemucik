@@ -7,7 +7,7 @@ import { safeReply } from '../utils/safeReply';
 export const interfaceCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('interface')
-    .setDescription('Создать или обновить постоянный канал-интерфейс Noi.')
+    .setDescription('Создать или обновить постоянный канал-интерфейс Pemucik.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild) {
@@ -38,7 +38,7 @@ export const interfaceCommand: AppCommand = {
       });
 
       await safeReply(interaction, {
-        content: `Noi Interface готов и закреплён в канале <#${result.channelId}>.`,
+        content: `Pemucik Interface готов и закреплён в канале <#${result.channelId}>.`,
         ephemeral: true,
       });
     } catch (error) {

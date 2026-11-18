@@ -26,9 +26,10 @@ export const TEMP_TTS_VOICE_PRESETS = [
   },
 ] as const;
 
-const TEMP_TTS_VOICE_PRESET_MAP = new Map<string, (typeof TEMP_TTS_VOICE_PRESETS)[number]>(
-  TEMP_TTS_VOICE_PRESETS.map((preset) => [preset.key, preset]),
-);
+const TEMP_TTS_VOICE_PRESET_MAP = new Map<
+  string,
+  (typeof TEMP_TTS_VOICE_PRESETS)[number]
+>(TEMP_TTS_VOICE_PRESETS.map((preset) => [preset.key, preset]));
 
 export class TtsControlServiceError extends Error {
   public constructor(
@@ -36,7 +37,8 @@ export class TtsControlServiceError extends Error {
       | 'NOT_OWNER_OR_ADMIN'
       | 'VOICE_PRESET_INVALID'
       | 'TTS_ACTION_REQUIRED'
-      | 'TTS_ACTION_CONFLICT',
+      | 'TTS_ACTION_CONFLICT'
+      | 'TTS_RUNTIME_UNAVAILABLE',
     message: string,
   ) {
     super(message);
@@ -50,7 +52,8 @@ export function resolveTempTtsActionInput(
 ): { kind: 'enabled'; enabled: boolean } | { kind: 'voice'; voiceKey: string } {
   const normalizedVoiceKey = voiceKey?.trim().toLowerCase() ?? null;
   const hasEnabled = enabled !== null;
-  const hasVoiceKey = normalizedVoiceKey !== null && normalizedVoiceKey.length > 0;
+  const hasVoiceKey =
+    normalizedVoiceKey !== null && normalizedVoiceKey.length > 0;
 
   if (hasEnabled && hasVoiceKey) {
     throw new TtsControlServiceError(
@@ -90,7 +93,9 @@ function assertManageAccess(target: ResolvedPanelTarget): void {
   );
 }
 
-function resolveVoicePreset(voiceKey: string): (typeof TEMP_TTS_VOICE_PRESETS)[number] {
+function resolveVoicePreset(
+  voiceKey: string,
+): (typeof TEMP_TTS_VOICE_PRESETS)[number] {
   const preset = TEMP_TTS_VOICE_PRESET_MAP.get(voiceKey);
 
   if (preset) {
@@ -103,29 +108,48 @@ function resolveVoicePreset(voiceKey: string): (typeof TEMP_TTS_VOICE_PRESETS)[n
   );
 }
 
-export function findTempTtsVoicePreset(voiceKey: string): (typeof TEMP_TTS_VOICE_PRESETS)[number] | null {
+export function findTempTtsVoicePreset(
+  voiceKey: string,
+): (typeof TEMP_TTS_VOICE_PRESETS)[number] | null {
   return TEMP_TTS_VOICE_PRESET_MAP.get(voiceKey.trim().toLowerCase()) ?? null;
 }
 
-function ensureRoomTtsSettings(target: ResolvedPanelTarget): TempTtsSettingsRecord {
-  return findTempTtsSettingsByVoiceChannelId(target.channel.id) ?? upsertTempTtsSettings({
-    voiceChannelId: target.channel.id,
-    guildId: target.record.guildId,
-  });
+function ensureRoomTtsSettings(
+  target: ResolvedPanelTarget,
+): TempTtsSettingsRecord {
+  return (
+    findTempTtsSettingsByVoiceChannelId(target.channel.id) ??
+    upsertTempTtsSettings({
+      voiceChannelId: target.channel.id,
+      guildId: target.record.guildId,
+    })
+  );
+}
+
+export function getRoomTtsSettings(
+  target: ResolvedPanelTarget,
+): TempTtsSettingsRecord {
+  assertManageAccess(target);
+  return ensureRoomTtsSettings(target);
 }
 
 export function describeTempTtsVoicePreset(voiceKey: string): string {
   return TEMP_TTS_VOICE_PRESET_MAP.get(voiceKey)?.label ?? voiceKey;
 }
 
-export function formatTempTtsSettingsState(record: TempTtsSettingsRecord): string {
+export function formatTempTtsSettingsState(
+  record: TempTtsSettingsRecord,
+): string {
   return [
     `TTS: ${record.enabled ? 'включён' : 'выключен'}`,
     `Голос: ${describeTempTtsVoicePreset(record.voiceKey)}`,
   ].join('\n');
 }
 
-export function setRoomTtsEnabled(target: ResolvedPanelTarget, enabled: boolean): TempTtsSettingsRecord {
+export function setRoomTtsEnabled(
+  target: ResolvedPanelTarget,
+  enabled: boolean,
+): TempTtsSettingsRecord {
   assertManageAccess(target);
 
   const existingRecord = ensureRoomTtsSettings(target);

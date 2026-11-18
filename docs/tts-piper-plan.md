@@ -1,13 +1,13 @@
-# Planned Feature: Linked Text-to-Speech with Piper
+# Recovered Feature Design: Local Text-to-Speech with Piper
 
 ## Status
-- Playback milestone implemented locally
-- Cleanup/recovery hooks implemented locally
+- Control, intake, playback, throttling, timeout, and cleanup milestones implemented locally
 - Live Discord verification still pending
 - Intended as a narrow post-MVP slice, not a broad new product surface
+- Current investigation and recovery evidence is in `docs/tts-investigation.md`
 
 ## Goal
-Add an opt-in room-level TTS feature so messages sent in a tracked temp room's linked text channel can be read aloud inside that same tracked temp voice room.
+Provide opt-in room-level TTS so native voice-channel chat, with a stored linked text channel as a legacy fallback, can be read aloud inside the same tracked temporary voice room.
 
 This feature must stay:
 - Discord-only
@@ -16,8 +16,8 @@ This feature must stay:
 - safe around cleanup and recovery
 - free-first and local-first through Piper
 
-## Why this shape fits XenoVoice
-XenoVoice already has a safe linked text model:
+## Why this shape fits Pemucik
+Pemucik already has a safe linked text model:
 - tracked temp voice rooms live in `temp_channels`
 - linked temp text rooms live in `temp_text_channels`
 - cleanup and recovery already protect paired voice/text artifacts
@@ -46,7 +46,7 @@ Do not implement these in the first version:
 2. Room owner or admin enables TTS for that room with `/voice tts enabled:true`.
 3. Room owner or admin optionally chooses a curated Piper voice preset with `/voice tts voice:<preset>`.
 4. Members type in the linked text channel.
-5. XenoVoice reads those messages into the matching temp voice room while the room is active.
+5. Pemucik reads those messages into the matching temp voice room while the room is active.
 
 ### Initial command surface
 Recommended first public surface:
@@ -61,7 +61,7 @@ The feature should fail cleanly when:
 - the temp room no longer exists in Discord
 
 ## Safety Rules
-TTS must follow the same conservative model as the rest of XenoVoice:
+TTS must follow the same conservative model as the rest of Pemucik:
 - never read from a text channel unless it is confirmed in `temp_text_channels`
 - never target a voice channel unless it is confirmed in `temp_channels`
 - stop playback and clear room TTS state when the tracked temp room is deleted or becomes stale
@@ -191,14 +191,16 @@ Add explicit structured logs for:
 8. Run a dedicated live Discord pass only after the local path is stable.
 
 Current checkpoint:
-- Steps 1 through 6 are implemented locally
+- Steps 1 through 7 are implemented locally
 - Step 8 is now the next milestone
 - The remaining work is focused live Discord validation with Piper and FFmpeg available on the host
 
-## Verification Checklist for the Future Live Pass
-When implementation starts, the first live pass should confirm:
+## Verification Checklist for the Live Pass
+The first live pass should confirm:
 - `/voice tts enabled:true` only works for owner/admin on a tracked temp room
-- messages in the linked temp text channel are read into the matching temp voice room
+- native voice-channel chat is read into the matching temp voice room
+- a stored linked temp text channel remains a working fallback
+- authors outside the exact voice room are ignored
 - messages in unrelated text channels are ignored
 - disabling TTS stops future playback
 - changing the voice preset affects later messages
@@ -209,10 +211,10 @@ When implementation starts, the first live pass should confirm:
 ## Decision Summary
 The recommended first implementation is:
 - a narrow `/voice tts` room-level control
-- only for linked temp text channels
+- primarily for native voice-channel chat, with linked temp text as a legacy fallback
 - only for tracked temp voice rooms
 - local Piper-based voices
 - small curated preset list
 - strict safety checks and bounded queues
 
-That shape keeps the feature aligned with XenoVoice's existing SQLite-confirmed temp-room model instead of turning the bot into a general-purpose server TTS reader.
+That shape keeps the feature aligned with Pemucik's existing SQLite-confirmed temp-room model instead of turning the bot into a general-purpose server TTS reader.

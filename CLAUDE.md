@@ -1,7 +1,7 @@
-# CLAUDE.md — Claude Code Configuration for XenoVoice
+# CLAUDE.md — Claude Code Configuration for Pemucik
 
 ## Project Context
-**App:** XenoVoice
+**App:** Pemucik
 **Stack:** Node.js LTS, TypeScript, discord.js v14, SQLite with better-sqlite3, PM2 on a small Linux VPS
 **Stage:** MVP Development
 **User Level:** A — Vibe-coder

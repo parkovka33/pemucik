@@ -2,45 +2,65 @@ import type { Client } from 'discord.js';
 
 import { findGuildSettingsByGuildId } from '../db/repositories/guildSettingsRepo';
 import { incrementMetricCounter } from '../db/repositories/metricsRepo';
+import { countTempChannelsByGuildId } from '../db/repositories/tempChannelsRepo';
 import {
-  countTempChannelsByGuildId,
-  deleteTempChannelByChannelId,
-  insertTempChannel,
-} from '../db/repositories/tempChannelsRepo';
-import { cleanupTrackedTempChannelIfEmpty } from '../services/cleanupService';
-import { getCreateCooldownRemainingSeconds, startCreateCooldown } from '../services/cooldownService';
+  cleanupTrackedTempChannelIfEmpty,
+  deleteTrackedTempChannelArtifacts,
+} from '../services/cleanupService';
+import {
+  getCreateCooldownRemainingSeconds,
+  startCreateCooldown,
+} from '../services/cooldownService';
 import { findOwnedTempChannel } from '../services/ownershipService';
-import {
-  TempChannelServiceError,
-  createTempChannelForMember,
-  moveMemberToChannel,
-} from '../services/tempChannelService';
+import { createTrackedTempChannelForMember } from '../services/tempChannelCreationService';
+import { TempChannelServiceError } from '../services/tempChannelService';
 import { syncLinkedTempTextChannelForVoiceChannel } from '../services/tempTextChannelService';
 import type { Logger } from '../utils/logger';
+import { KeyedSerialExecutor } from '../utils/keyedSerialExecutor';
 
-function isGeneratorJoin(oldChannelId: string | null, newChannelId: string | null): boolean {
+const tempChannelCreationExecutor = new KeyedSerialExecutor();
+
+function isGeneratorJoin(
+  oldChannelId: string | null,
+  newChannelId: string | null,
+): boolean {
   return oldChannelId !== newChannelId && newChannelId !== null;
 }
 
-function isChannelLeave(oldChannelId: string | null, newChannelId: string | null): boolean {
+function isChannelLeave(
+  oldChannelId: string | null,
+  newChannelId: string | null,
+): boolean {
   return oldChannelId !== null && oldChannelId !== newChannelId;
 }
 
-export function registerVoiceStateUpdateHandler(client: Client, logger: Logger): void {
+export function registerVoiceStateUpdateHandler(
+  client: Client,
+  logger: Logger,
+): void {
   client.on('voiceStateUpdate', async (oldState, newState) => {
     if (oldState.channelId === newState.channelId) {
       return;
     }
 
-    if (isChannelLeave(oldState.channelId, newState.channelId) && oldState.channelId) {
+    if (
+      isChannelLeave(oldState.channelId, newState.channelId) &&
+      oldState.channelId
+    ) {
       try {
-        await syncLinkedTempTextChannelForVoiceChannel(oldState.guild, oldState.channelId);
+        await syncLinkedTempTextChannelForVoiceChannel(
+          oldState.guild,
+          oldState.channelId,
+        );
       } catch (error) {
-        logger.error({
-          event: 'linked_temp_text_channel_sync_failed_on_leave',
-          guildId: oldState.guild.id,
-          voiceChannelId: oldState.channelId,
-        }, error);
+        logger.error(
+          {
+            event: 'linked_temp_text_channel_sync_failed_on_leave',
+            guildId: oldState.guild.id,
+            voiceChannelId: oldState.channelId,
+          },
+          error,
+        );
       }
 
       try {
@@ -56,13 +76,26 @@ export function registerVoiceStateUpdateHandler(client: Client, logger: Logger):
             guildId: oldState.guild.id,
             channelId: oldState.channelId,
           });
+        } else if (
+          cleanupResult === 'voice_delete_retry_required'
+          || cleanupResult === 'artifact_cleanup_retry_required'
+        ) {
+          logger.warn({
+            event: 'temp_channel_cleanup_retry_required',
+            guildId: oldState.guild.id,
+            channelId: oldState.channelId,
+            cleanupResult,
+          });
         }
       } catch (error) {
-        logger.error({
-          event: 'temp_channel_cleanup_failed',
-          guildId: oldState.guild.id,
-          channelId: oldState.channelId,
-        }, error);
+        logger.error(
+          {
+            event: 'temp_channel_cleanup_failed',
+            guildId: oldState.guild.id,
+            channelId: oldState.channelId,
+          },
+          error,
+        );
       }
     }
 
@@ -70,19 +103,27 @@ export function registerVoiceStateUpdateHandler(client: Client, logger: Logger):
       return;
     }
 
-    if (!newState.member || newState.member.user.bot || !newState.channel) {
+    const member = newState.member;
+
+    if (!member || member.user.bot || !newState.channel) {
       return;
     }
 
     if (newState.channelId) {
       try {
-        await syncLinkedTempTextChannelForVoiceChannel(newState.guild, newState.channelId);
+        await syncLinkedTempTextChannelForVoiceChannel(
+          newState.guild,
+          newState.channelId,
+        );
       } catch (error) {
-        logger.error({
-          event: 'linked_temp_text_channel_sync_failed_on_join',
-          guildId: newState.guild.id,
-          voiceChannelId: newState.channelId,
-        }, error);
+        logger.error(
+          {
+            event: 'linked_temp_text_channel_sync_failed_on_join',
+            guildId: newState.guild.id,
+            voiceChannelId: newState.channelId,
+          },
+          error,
+        );
       }
     }
 
@@ -92,123 +133,174 @@ export function registerVoiceStateUpdateHandler(client: Client, logger: Logger):
       return;
     }
 
-    if (newState.member.voice.channelId !== settings.generatorChannelId) {
+    if (member.voice.channelId !== settings.generatorChannelId) {
       return;
     }
 
-    const cooldownRemainingSeconds = getCreateCooldownRemainingSeconds(
-      newState.guild.id,
-      newState.member.id,
-    );
+    await tempChannelCreationExecutor.run(newState.guild.id, async () => {
+      const cooldownRemainingSeconds = getCreateCooldownRemainingSeconds(
+        newState.guild.id,
+        member.id,
+      );
 
-    if (cooldownRemainingSeconds > 0) {
-      logger.warn({
-        event: 'temp_channel_create_cooldown_active',
-        guildId: newState.guild.id,
-        userId: newState.member.id,
-        remainingSeconds: cooldownRemainingSeconds,
-      });
-      return;
-    }
-
-    const existingTempChannel = findOwnedTempChannel(newState.guild.id, newState.member.id);
-
-    if (existingTempChannel) {
-      const existingChannel = await newState.guild.channels.fetch(existingTempChannel.channelId);
-
-      if (existingChannel?.isVoiceBased()) {
-        try {
-          await newState.member.voice.setChannel(existingChannel);
-          logger.info({
-            event: 'temp_channel_reused',
-            guildId: newState.guild.id,
-            userId: newState.member.id,
-            channelId: existingTempChannel.channelId,
-          });
-          return;
-        } catch (error) {
-          logger.warn({
-            event: 'temp_channel_reuse_failed',
-            guildId: newState.guild.id,
-            userId: newState.member.id,
-            channelId: existingTempChannel.channelId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return;
-        }
-      } else {
-        deleteTempChannelByChannelId(existingTempChannel.channelId);
-      }
-    }
-
-    const tempChannelCount = countTempChannelsByGuildId(newState.guild.id);
-
-    if (tempChannelCount >= settings.maxTempChannels) {
-      logger.warn({
-        event: 'temp_channel_limit_reached',
-        guildId: newState.guild.id,
-        userId: newState.member.id,
-        maxTempChannels: settings.maxTempChannels,
-      });
-      return;
-    }
-
-    try {
-      if (newState.member.voice.channelId !== settings.generatorChannelId) {
+      if (cooldownRemainingSeconds > 0) {
+        logger.warn({
+          event: 'temp_channel_create_cooldown_active',
+          guildId: newState.guild.id,
+          userId: member.id,
+          remainingSeconds: cooldownRemainingSeconds,
+        });
         return;
       }
 
-      startCreateCooldown(newState.guild.id, newState.member.id);
+      const existingTempChannel = findOwnedTempChannel(
+        newState.guild.id,
+        member.id,
+      );
 
-      const tempChannel = await createTempChannelForMember(newState.member, settings);
+      if (existingTempChannel) {
+        const existingChannel = await newState.guild.channels.fetch(
+          existingTempChannel.channelId,
+        );
+
+        if (existingChannel?.isVoiceBased()) {
+          try {
+            await member.voice.setChannel(existingChannel);
+            logger.info({
+              event: 'temp_channel_reused',
+              guildId: newState.guild.id,
+              userId: member.id,
+              channelId: existingTempChannel.channelId,
+            });
+            return;
+          } catch (error) {
+            logger.warn({
+              event: 'temp_channel_reuse_failed',
+              guildId: newState.guild.id,
+              userId: member.id,
+              channelId: existingTempChannel.channelId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return;
+          }
+        } else {
+          const cleanupResult = await deleteTrackedTempChannelArtifacts(
+            newState.guild,
+            existingTempChannel.channelId,
+          );
+
+          if (cleanupResult.status !== 'completed') {
+            logger.warn({
+              event: 'stale_temp_channel_cleanup_retry_required',
+              guildId: newState.guild.id,
+              userId: member.id,
+              channelId: existingTempChannel.channelId,
+              cleanupStatus: cleanupResult.status,
+            });
+            return;
+          }
+        }
+      }
+
+      const tempChannelCount = countTempChannelsByGuildId(newState.guild.id);
+
+      if (tempChannelCount >= settings.maxTempChannels) {
+        logger.warn({
+          event: 'temp_channel_limit_reached',
+          guildId: newState.guild.id,
+          userId: member.id,
+          maxTempChannels: settings.maxTempChannels,
+        });
+        return;
+      }
 
       try {
-        if (newState.member.voice.channelId !== settings.generatorChannelId) {
-          await tempChannel.delete('Noi: удаление временной комнаты после выхода пользователя из генератора до переноса');
+        if (member.voice.channelId !== settings.generatorChannelId) {
           return;
         }
 
-        await moveMemberToChannel(newState.member, tempChannel);
-      } catch (error) {
-        await tempChannel.delete('Noi: удаление временной комнаты после неудачного переноса пользователя');
-        throw error;
-      }
+        startCreateCooldown(newState.guild.id, member.id);
 
-      insertTempChannel({
-        channelId: tempChannel.id,
-        guildId: newState.guild.id,
-        ownerUserId: newState.member.id,
-        categoryId: settings.categoryId,
-        userLimit: tempChannel.userLimit,
-      });
+        const creationResult = await createTrackedTempChannelForMember(member, settings);
 
-      incrementMetricCounter(newState.guild.id, 'channels_created');
+        if (creationResult.status === 'member_left_before_create') {
+          return;
+        }
 
-      logger.info({
-        event: 'temp_channel_created',
-        guildId: newState.guild.id,
-        userId: newState.member.id,
-        channelId: tempChannel.id,
-      });
-    } catch (error) {
-      if (error instanceof TempChannelServiceError) {
-        logger.warn({
-          event: 'temp_channel_create_blocked',
+        if (creationResult.status === 'orphaned_untracked') {
+          logger.error(
+            {
+              event: 'temp_channel_orphaned_untracked',
+              guildId: newState.guild.id,
+              userId: member.id,
+              channelId: creationResult.channelId,
+              conflictingChannelId: creationResult.conflictingChannelId ?? 'none',
+            },
+            creationResult.cause,
+          );
+          incrementMetricCounter(newState.guild.id, 'creation_failed');
+          return;
+        }
+
+        if (creationResult.status === 'compensation_retry_required') {
+          logger.error(
+            {
+              event: 'temp_channel_creation_compensation_retry_required',
+              guildId: newState.guild.id,
+              userId: member.id,
+              channelId: creationResult.channelId,
+              reason: creationResult.reason,
+              stage: creationResult.stage,
+            },
+            creationResult.cause,
+          );
+          incrementMetricCounter(newState.guild.id, 'creation_failed');
+          return;
+        }
+
+        if (creationResult.status === 'compensated') {
+          logger.warn({
+            event: 'temp_channel_creation_compensated',
+            guildId: newState.guild.id,
+            userId: member.id,
+            channelId: creationResult.channelId,
+            reason: creationResult.reason,
+          });
+          incrementMetricCounter(newState.guild.id, 'creation_failed');
+          return;
+        }
+
+        incrementMetricCounter(newState.guild.id, 'channels_created');
+
+        logger.info({
+          event: 'temp_channel_created',
           guildId: newState.guild.id,
-          userId: newState.member.id,
-          code: error.code,
-          message: error.message,
+          userId: member.id,
+          channelId: creationResult.channel.id,
         });
-        incrementMetricCounter(newState.guild.id, 'creation_failed');
-        return;
-      }
+      } catch (error) {
+        if (error instanceof TempChannelServiceError) {
+          logger.warn({
+            event: 'temp_channel_create_blocked',
+            guildId: newState.guild.id,
+            userId: member.id,
+            code: error.code,
+            message: error.message,
+          });
+          incrementMetricCounter(newState.guild.id, 'creation_failed');
+          return;
+        }
 
-      logger.error({
-        event: 'temp_channel_create_failed',
-        guildId: newState.guild.id,
-        userId: newState.member.id,
-      }, error);
-      incrementMetricCounter(newState.guild.id, 'creation_failed');
-    }
+        logger.error(
+          {
+            event: 'temp_channel_create_failed',
+            guildId: newState.guild.id,
+            userId: member.id,
+          },
+          error,
+        );
+        incrementMetricCounter(newState.guild.id, 'creation_failed');
+      }
+    });
   });
 }

@@ -1,10 +1,10 @@
-# XenoVoice Listing Copy
+# Pemucik Listing Copy
 
 This file collects listing-ready copy for bot directories and lightweight submission prep. Keep it aligned with the current MVP and avoid promising post-MVP features.
 
 ## Product position
 
-XenoVoice is a Discord-only temporary voice bot for communities that want spontaneous voice rooms without clutter, premium pressure, or a web dashboard.
+Pemucik is a Discord-only temporary voice bot for communities that want spontaneous voice rooms without clutter, premium pressure, or a web dashboard.
 
 Core positioning points:
 
@@ -16,7 +16,7 @@ Core positioning points:
 ## Tagline options
 
 - Temporary voice channels without the premium pressure.
-- Join, talk, leave - XenoVoice cleans up automatically.
+- Join, talk, leave - Pemucik cleans up automatically.
 - Free-first temporary voice rooms for Discord communities.
 
 ## Short description options
@@ -27,15 +27,15 @@ Use these where a bot directory asks for a compact summary.
 
 Use this as the default English short description for the first public listing pass:
 
-`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and XenoVoice creates and cleans up rooms automatically.`
+`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and Pemucik creates and cleans up rooms automatically.`
 
 ### English
 
-`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and XenoVoice creates and cleans up rooms automatically.`
+`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and Pemucik creates and cleans up rooms automatically.`
 
 ### Russian
 
-`Бесплатный Discord-бот для временных голосовых комнат. Админ один раз запускает /setup, участники заходят в канал-генератор, а XenoVoice сам создаёт и удаляет комнаты.`
+`Бесплатный Discord-бот для временных голосовых комнат. Админ один раз запускает /setup, участники заходят в канал-генератор, а Pemucik сам создаёт и удаляет комнаты.`
 
 ## Long description
 
@@ -45,12 +45,12 @@ Use the English long description below as the default long listing copy for the 
 
 ### English
 
-XenoVoice helps Discord communities keep voice chat simple. An admin runs `/setup` once, members join the generator voice channel, and XenoVoice creates a temporary room for them automatically.
+Pemucik helps Discord communities keep voice chat simple. An admin runs `/setup` once, members join the generator voice channel, and Pemucik creates a temporary room for them automatically.
 
-Room owners can manage their space directly inside Discord with `/voice ...`: rename the room, lock or unlock it, change the user limit, transfer ownership, and use related room controls. When everyone leaves, XenoVoice safely removes the empty room after confirming that it is a tracked temporary channel.
+Room owners can manage their space directly inside Discord with `/voice ...`: rename the room, lock or unlock it, change the user limit, transfer ownership, and use related room controls. When everyone leaves, Pemucik safely removes the empty room after confirming that it is a tracked temporary channel.
 Members inside an abandoned tracked room can also use `/voice claim` to take ownership when the previous owner is no longer there.
 
-Why XenoVoice:
+Why Pemucik:
 
 - free-first core experience
 - no website required
@@ -67,11 +67,11 @@ Current MVP scope:
 
 ### Russian
 
-XenoVoice помогает Discord-серверам держать голосовые каналы в порядке. Администратор один раз запускает `/setup`, участники заходят в канал-генератор, и бот автоматически создаёт для них временную комнату.
+Pemucik помогает Discord-серверам держать голосовые каналы в порядке. Администратор один раз запускает `/setup`, участники заходят в канал-генератор, и бот автоматически создаёт для них временную комнату.
 
-Владелец комнаты управляет ею прямо в Discord через `/voice ...`: может переименовать комнату, закрыть или открыть её, изменить лимит участников и использовать связанные команды управления комнатой. Когда все выходят, XenoVoice безопасно удаляет пустую комнату только после проверки, что она действительно отслеживается как временная.
+Владелец комнаты управляет ею прямо в Discord через `/voice ...`: может переименовать комнату, закрыть или открыть её, изменить лимит участников и использовать связанные команды управления комнатой. Когда все выходят, Pemucik безопасно удаляет пустую комнату только после проверки, что она действительно отслеживается как временная.
 
-Почему XenoVoice:
+Почему Pemucik:
 
 - free-first подход без давления premium-ограничениями
 - без сайта и веб-панели
@@ -100,7 +100,7 @@ Use these when a bot list allows bullet points or highlights:
 
 Good wording for listing FAQs or extra fields:
 
-- XenoVoice is Discord-only and does not require a website.
+- Pemucik is Discord-only and does not require a website.
 - Basic functionality is meant to stay useful without a premium wall.
 - Support and donation links can be shown through `/support`.
 

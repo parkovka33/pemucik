@@ -55,7 +55,7 @@ function buildLinkedTextChannelName(voiceChannel: VoiceChannel): string {
 }
 
 function buildLinkedTextTopic(voiceChannel: VoiceChannel): string {
-  return `Временный текстовый канал Noi для голосовой комнаты ${voiceChannel.name} (${voiceChannel.id}).`;
+  return `Временный текстовый канал Pemucik для голосовой комнаты ${voiceChannel.name} (${voiceChannel.id}).`;
 }
 
 function getAdminRoleIds(channel: VoiceChannel): string[] {
@@ -187,7 +187,7 @@ async function syncLinkedTextChannelState(
       name: desiredName,
       topic: desiredTopic,
       ...(desiredParentId ? { parent: desiredParentId } : {}),
-      reason: `Noi: синхронизация связанного текстового канала для комнаты ${voiceChannel.id}`,
+      reason: `Pemucik: синхронизация связанного текстового канала для комнаты ${voiceChannel.id}`,
     });
   }
 
@@ -250,7 +250,7 @@ async function createLinkedTextChannel(target: ResolvedPanelTarget): Promise<Tex
     parent: parentId,
     topic: buildLinkedTextTopic(target.channel),
     permissionOverwrites: buildInitialLinkedTextOverwrites(target),
-    reason: `Noi: создание связанного текстового канала для комнаты ${target.channel.id}`,
+    reason: `Pemucik: создание связанного текстового канала для комнаты ${target.channel.id}`,
   });
 }
 
@@ -347,7 +347,17 @@ export async function deleteLinkedTempTextChannelForVoiceChannel(
     return 'missing_text_channel';
   }
 
-  await textChannel.delete(`Noi: удаление связанного текстового канала для комнаты ${voiceChannelId}`);
+  try {
+    await textChannel.delete(`Pemucik: удаление связанного текстового канала для комнаты ${voiceChannelId}`);
+  } catch (error) {
+    if (!isUnknownChannelError(error)) {
+      throw error;
+    }
+
+    deleteTempTextChannelByVoiceChannelId(voiceChannelId);
+    return 'missing_text_channel';
+  }
+
   deleteTempTextChannelByVoiceChannelId(voiceChannelId);
 
   return 'deleted';

@@ -21,6 +21,10 @@ import {
   deleteTrackedTempChannelArtifacts,
 } from './cleanupService';
 import {
+  applyRecoverableRoomRestriction,
+  ManagedPermissionMutationError,
+} from './managedPermissionMutation';
+import {
   resolvePanelTargetByChannelId,
   type ResolvedPanelTarget,
 } from './panelService';
@@ -51,7 +55,9 @@ export class VoiceControlServiceError extends Error {
       | 'REQUEST_ALREADY_IN_ROOM'
       | 'REMOVE_PERMIT_TARGET_INVALID'
       | 'KICK_OWNER_NOT_ALLOWED'
-      | 'KICK_TARGET_NOT_IN_ROOM',
+      | 'KICK_TARGET_NOT_IN_ROOM'
+      | 'ARTIFACT_CLEANUP_RETRY_REQUIRED'
+      | 'PERMISSION_SAFETY_BLOCKED',
     message: string,
   ) {
     super(message);
@@ -68,19 +74,6 @@ function assertManageAccess(target: ResolvedPanelTarget): void {
     'NOT_OWNER_OR_ADMIN',
     'Только владелец комнаты или администратор сервера может использовать эту команду.',
   );
-}
-
-function getAdminRoles(channel: VoiceChannel): Role[] {
-  const everyoneRoleId = channel.guild.roles.everyone.id;
-
-  return channel.guild.roles.cache
-    .filter((role) =>
-      role.id !== everyoneRoleId && (
-        role.permissions.has(PermissionFlagsBits.Administrator)
-        || role.permissions.has(PermissionFlagsBits.ManageChannels)
-      ),
-    )
-    .map((role) => role);
 }
 
 async function ensurePermissionIfNeutral(
@@ -265,7 +258,7 @@ export async function setVoiceChannelBitrate(
 
   await target.channel.edit({
     bitrate: bitrateBits,
-    reason: `Noi: изменение битрейта комнаты пользователем ${actor.user.tag}`,
+    reason: `Pemucik: изменение битрейта комнаты пользователем ${actor.user.tag}`,
   });
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -277,21 +270,29 @@ export async function ghostVoiceChannel(
 ): Promise<ResolvedPanelTarget> {
   assertManageAccess(target);
 
-  const everyoneRoleId = target.channel.guild.roles.everyone.id;
-  const botId = target.channel.guild.members.me?.id;
+  try {
+    await applyRecoverableRoomRestriction({
+      channel: target.channel,
+      ownerId: target.record.ownerUserId,
+      permission: 'ViewChannel',
+      operation: 'ghost',
+    });
+  } catch (error) {
+    if (
+      error instanceof ManagedPermissionMutationError
+      && (
+        error.code === 'UNSAFE_EXPLICIT_DENY'
+        || error.code === 'UNSAFE_MANAGEMENT_DENY'
+        || error.code === 'BOT_MEMBER_UNAVAILABLE'
+      )
+    ) {
+      throw new VoiceControlServiceError(
+        'PERMISSION_SAFETY_BLOCKED',
+        'Не удалось безопасно скрыть комнату: существующие права владельца, бота или управляющих ролей конфликтуют с операцией.',
+      );
+    }
 
-  await target.channel.permissionOverwrites.edit(everyoneRoleId, {
-    ViewChannel: false,
-  });
-
-  await ensurePermissionIfNeutral(target.channel, target.record.ownerUserId, 'ViewChannel');
-
-  if (botId) {
-    await ensurePermissionIfNeutral(target.channel, botId, 'ViewChannel');
-  }
-
-  for (const role of getAdminRoles(target.channel)) {
-    await ensurePermissionIfNeutral(target.channel, role.id, 'ViewChannel');
+    throw error;
   }
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -319,7 +320,7 @@ export async function setVoiceChannelNsfw(
 
   await target.channel.setNSFW(
     enabled,
-    `Noi: переключение NSFW комнаты пользователем ${actor.user.tag}`,
+    `Pemucik: переключение NSFW комнаты пользователем ${actor.user.tag}`,
   );
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -335,7 +336,7 @@ export async function setVoiceChannelRegion(
 
   await target.channel.setRTCRegion(
     rtcRegion,
-    `Noi: изменение региона комнаты пользователем ${actor.user.tag}`,
+    `Pemucik: изменение региона комнаты пользователем ${actor.user.tag}`,
   );
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -352,7 +353,7 @@ export async function setVoiceChannelStatus(
 
   await actor.client.rest.put(`/channels/${target.channel.id}/voice-status`, {
     body: { status },
-    reason: `Noi: изменение статуса комнаты пользователем ${actor.user.tag}`,
+    reason: `Pemucik: изменение статуса комнаты пользователем ${actor.user.tag}`,
   });
 
   return status;
@@ -458,7 +459,7 @@ export async function rejectVoiceAccess(
   });
 
   if ('user' in accessTarget && accessTarget.voice.channelId === target.channel.id) {
-    await accessTarget.voice.disconnect(`Noi: отклонение доступа владельцем ${actor.user.tag}`);
+    await accessTarget.voice.disconnect(`Pemucik: отклонение доступа владельцем ${actor.user.tag}`);
   }
 
   return resolvePanelTargetByChannelId(actor, target.channel.id);
@@ -497,7 +498,7 @@ export async function kickVoiceMember(
     );
   }
 
-  await member.voice.disconnect(`Noi: удаление участника владельцем ${actor.user.tag}`);
+  await member.voice.disconnect(`Pemucik: удаление участника владельцем ${actor.user.tag}`);
   return resolvePanelTargetByChannelId(actor, target.channel.id);
 }
 
@@ -513,7 +514,7 @@ export async function createVoiceChannelInvite(
     maxAge: 3_600,
     maxUses: 1,
     unique: true,
-    reason: `Noi: инвайт в комнату создан пользователем ${actor.user.tag}`,
+    reason: `Pemucik: инвайт в комнату создан пользователем ${actor.user.tag}`,
   });
 
   try {
@@ -548,12 +549,19 @@ export async function deleteVoiceChannel(
   if (!trackedRecord) {
     throw new VoiceControlServiceError(
       'REQUEST_TARGET_NOT_FOUND',
-      'Комната больше не подтверждается в базе данных Noi и не будет удалена автоматически.',
+      'Комната больше не подтверждается в базе данных Pemucik и не будет удалена автоматически.',
     );
   }
 
-  await target.channel.delete(`Noi: удаление комнаты пользователем ${actor.user.tag}`);
-  await deleteTrackedTempChannelArtifacts(actor.guild, target.channel.id);
+  await target.channel.delete(`Pemucik: удаление комнаты пользователем ${actor.user.tag}`);
+  const cleanupResult = await deleteTrackedTempChannelArtifacts(actor.guild, target.channel.id);
+
+  if (cleanupResult.status !== 'completed') {
+    throw new VoiceControlServiceError(
+      'ARTIFACT_CLEANUP_RETRY_REQUIRED',
+      'Голосовая комната удалена, но очистка связанных данных будет повторена позже.',
+    );
+  }
 }
 
 export async function requestVoiceAccess(
@@ -572,7 +580,7 @@ export async function requestVoiceAccess(
   if (!record) {
     throw new VoiceControlServiceError(
       'REQUEST_TARGET_NOT_FOUND',
-      'У этого участника сейчас нет отслеживаемой временной комнаты Noi.',
+      'У этого участника сейчас нет отслеживаемой временной комнаты Pemucik.',
     );
   }
 

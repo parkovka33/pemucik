@@ -1,6 +1,13 @@
+import { existsSync } from 'node:fs';
+
 import { config as loadDotEnv } from 'dotenv';
 
-import { DEFAULT_DATABASE_PATH, DEFAULT_LOG_LEVEL, DEFAULT_NODE_ENV } from './constants';
+import {
+  DEFAULT_DATABASE_PATH,
+  DEFAULT_LOG_LEVEL,
+  DEFAULT_NODE_ENV,
+  LEGACY_DATABASE_PATH,
+} from './constants';
 import type { AppEnv, LogLevel, NodeEnvironment } from '../types';
 
 loadDotEnv();
@@ -44,7 +51,17 @@ function parseNodeEnv(raw: string | undefined): NodeEnvironment {
 }
 
 export function getDatabasePath(): string {
-  return optionalEnv('DATABASE_PATH') ?? DEFAULT_DATABASE_PATH;
+  const configuredPath = optionalEnv('DATABASE_PATH');
+
+  if (configuredPath) {
+    return configuredPath;
+  }
+
+  if (!existsSync(DEFAULT_DATABASE_PATH) && existsSync(LEGACY_DATABASE_PATH)) {
+    return LEGACY_DATABASE_PATH;
+  }
+
+  return DEFAULT_DATABASE_PATH;
 }
 
 export function getEnv(): AppEnv {

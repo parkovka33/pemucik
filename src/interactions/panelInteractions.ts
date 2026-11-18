@@ -1,3 +1,4 @@
+import { MessageFlags } from 'discord.js';
 import type {
   ButtonInteraction,
   GuildMember,
@@ -25,22 +26,39 @@ import {
 import { safeReply } from '../utils/safeReply';
 
 function getGuildMember(
-  interaction: ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
+  interaction:
+    ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
 ): GuildMember {
   return interaction.member as GuildMember;
 }
 
-function isDiscordMissingPermissionsError(error: unknown): error is { code: number } {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 50013;
+function isDiscordMissingPermissionsError(
+  error: unknown,
+): error is { code: number } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 50013
+  );
 }
 
 async function replyPanelError(
-  interaction: ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
-  error: PanelServiceError,
+  interaction:
+    ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
+  message: string,
 ): Promise<void> {
+  if (interaction.deferred && !interaction.isModalSubmit()) {
+    await interaction.followUp({
+      content: message,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   await safeReply(interaction, {
-    content: error.message,
-    ephemeral: true,
+    content: message,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -49,7 +67,8 @@ export function matchesPanelInteraction(customId: string): boolean {
 }
 
 export async function handlePanelInteraction(
-  interaction: ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
+  interaction:
+    ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction,
   context: CommandExecutionContext,
 ): Promise<void> {
   const parsed = parsePanelCustomId(interaction.customId);
@@ -62,16 +81,26 @@ export async function handlePanelInteraction(
 
   try {
     if (interaction.isButton()) {
-      const target = await resolvePanelTargetByChannelId(member, parsed.channelId);
-
       if (parsed.action === 'rename') {
-        await interaction.showModal(buildRenameModal(target.channel.id, target.channel.name));
+        const cachedChannel = member.guild.channels.cache.get(parsed.channelId);
+        const currentName = cachedChannel?.isVoiceBased()
+          ? cachedChannel.name
+          : '';
+        await interaction.showModal(
+          buildRenameModal(parsed.channelId, currentName),
+        );
         return;
       }
 
+      await interaction.deferUpdate();
+      const target = await resolvePanelTargetByChannelId(
+        member,
+        parsed.channelId,
+      );
+
       if (parsed.action === 'refresh') {
         const embed = await buildPanelEmbed(target);
-        await interaction.update({
+        await interaction.editReply({
           embeds: [embed],
           components: buildPanelComponents(target),
         });
@@ -87,7 +116,7 @@ export async function handlePanelInteraction(
           channelId: target.channel.id,
         });
         const embed = await buildPanelEmbed(updatedTarget);
-        await interaction.update({
+        await interaction.editReply({
           embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
@@ -104,7 +133,7 @@ export async function handlePanelInteraction(
           channelId: target.channel.id,
         });
         const embed = await buildPanelEmbed(updatedTarget);
-        await interaction.update({
+        await interaction.editReply({
           embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
@@ -121,7 +150,7 @@ export async function handlePanelInteraction(
           channelId: target.channel.id,
         });
         const embed = await buildPanelEmbed(updatedTarget);
-        await interaction.update({
+        await interaction.editReply({
           embeds: [embed],
           components: buildPanelComponents(updatedTarget),
         });
@@ -131,9 +160,17 @@ export async function handlePanelInteraction(
     }
 
     if (interaction.isStringSelectMenu() && parsed.action === 'setlimit') {
-      const target = await resolvePanelTargetByChannelId(member, parsed.channelId);
+      await interaction.deferUpdate();
+      const target = await resolvePanelTargetByChannelId(
+        member,
+        parsed.channelId,
+      );
       const selectedLimit = Number(interaction.values[0]);
-      const updatedTarget = await setPanelChannelUserLimit(target, selectedLimit, member);
+      const updatedTarget = await setPanelChannelUserLimit(
+        target,
+        selectedLimit,
+        member,
+      );
 
       incrementMetricCounter(member.guild.id, 'limit_used');
       context.logger.info({
@@ -145,7 +182,7 @@ export async function handlePanelInteraction(
       });
 
       const embed = await buildPanelEmbed(updatedTarget);
-      await interaction.update({
+      await interaction.editReply({
         embeds: [embed],
         components: buildPanelComponents(updatedTarget),
       });
@@ -153,8 +190,14 @@ export async function handlePanelInteraction(
     }
 
     if (interaction.isModalSubmit() && parsed.action === 'rename') {
-      const target = await resolvePanelTargetByChannelId(member, parsed.channelId);
-      const newName = interaction.fields.getTextInputValue(PANEL_RENAME_INPUT_ID);
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const target = await resolvePanelTargetByChannelId(
+        member,
+        parsed.channelId,
+      );
+      const newName = interaction.fields.getTextInputValue(
+        PANEL_RENAME_INPUT_ID,
+      );
       const updatedTarget = await renamePanelChannel(target, member, newName);
 
       incrementMetricCounter(member.guild.id, 'rename_used');
@@ -166,36 +209,38 @@ export async function handlePanelInteraction(
       });
 
       const embed = await buildPanelEmbed(updatedTarget);
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [embed],
         components: buildPanelComponents(updatedTarget),
-        ephemeral: true,
       });
     }
   } catch (error) {
     if (error instanceof PanelServiceError) {
-      await replyPanelError(interaction, error);
+      await replyPanelError(interaction, error.message);
       return;
     }
 
-    context.logger.error({
-      event: 'panel_interaction_failed',
-      guildId: member.guild.id,
-      userId: member.id,
-      customId: interaction.customId,
-    }, error);
+    context.logger.error(
+      {
+        event: 'panel_interaction_failed',
+        guildId: member.guild.id,
+        userId: member.id,
+        customId: interaction.customId,
+      },
+      error,
+    );
 
     if (isDiscordMissingPermissionsError(error)) {
-      await safeReply(interaction, {
-        content: 'У Noi не хватает прав, чтобы изменить доступ к комнате. Выдайте боту `Administrator` или права на изменение переопределений прав канала, затем попробуйте снова.',
-        ephemeral: true,
-      });
+      await replyPanelError(
+        interaction,
+        'У Pemucik не хватает прав, чтобы изменить доступ к комнате. Выдайте боту `Administrator` или права на изменение переопределений прав канала, затем попробуйте снова.',
+      );
       return;
     }
 
-    await safeReply(interaction, {
-      content: 'Во время обработки действия в панели управления произошла ошибка.',
-      ephemeral: true,
-    });
+    await replyPanelError(
+      interaction,
+      'Во время обработки действия в панели управления произошла ошибка.',
+    );
   }
 }

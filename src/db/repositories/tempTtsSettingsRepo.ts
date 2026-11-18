@@ -31,7 +31,9 @@ function mapTempTtsSettingsRow(row: TempTtsSettingsRow): TempTtsSettingsRecord {
   };
 }
 
-export function findTempTtsSettingsByVoiceChannelId(voiceChannelId: string): TempTtsSettingsRecord | null {
+export function findTempTtsSettingsByVoiceChannelId(
+  voiceChannelId: string,
+): TempTtsSettingsRecord | null {
   const database = getDatabase();
   const row = database
     .prepare(
@@ -50,7 +52,9 @@ export function findTempTtsSettingsByVoiceChannelId(voiceChannelId: string): Tem
   return row ? mapTempTtsSettingsRow(row) : null;
 }
 
-export function listTempTtsSettingsByGuildId(guildId: string): TempTtsSettingsRecord[] {
+export function listTempTtsSettingsByGuildId(
+  guildId: string,
+): TempTtsSettingsRecord[] {
   const database = getDatabase();
   const rows = database
     .prepare(
@@ -70,11 +74,14 @@ export function listTempTtsSettingsByGuildId(guildId: string): TempTtsSettingsRe
   return rows.map(mapTempTtsSettingsRow);
 }
 
-export function upsertTempTtsSettings(input: UpsertTempTtsSettingsInput): TempTtsSettingsRecord {
+export function upsertTempTtsSettings(
+  input: UpsertTempTtsSettingsInput,
+): TempTtsSettingsRecord {
   const database = getDatabase();
 
-  database.prepare(
-    `INSERT INTO temp_tts_settings (
+  database
+    .prepare(
+      `INSERT INTO temp_tts_settings (
       voice_channel_id,
       guild_id,
       enabled,
@@ -82,19 +89,21 @@ export function upsertTempTtsSettings(input: UpsertTempTtsSettingsInput): TempTt
     ) VALUES (
       @voiceChannelId,
       @guildId,
-      @enabled,
-      @voiceKey
+      COALESCE(@enabled, 0),
+      COALESCE(@voiceKey, '${DEFAULT_TEMP_TTS_VOICE_KEY}')
     )
     ON CONFLICT(voice_channel_id) DO UPDATE SET
       guild_id = excluded.guild_id,
-      enabled = excluded.enabled,
-      voice_key = excluded.voice_key,
+      enabled = COALESCE(@enabled, temp_tts_settings.enabled),
+      voice_key = COALESCE(@voiceKey, temp_tts_settings.voice_key),
       updated_at = CURRENT_TIMESTAMP`,
-  ).run({
-    ...input,
-    enabled: input.enabled ? 1 : 0,
-    voiceKey: input.voiceKey ?? DEFAULT_TEMP_TTS_VOICE_KEY,
-  });
+    )
+    .run({
+      voiceChannelId: input.voiceChannelId,
+      guildId: input.guildId,
+      enabled: input.enabled === undefined ? null : input.enabled ? 1 : 0,
+      voiceKey: input.voiceKey ?? null,
+    });
 
   const record = findTempTtsSettingsByVoiceChannelId(input.voiceChannelId);
 
@@ -105,14 +114,19 @@ export function upsertTempTtsSettings(input: UpsertTempTtsSettingsInput): TempTt
   return record;
 }
 
-export function updateTempTtsEnabled(voiceChannelId: string, enabled: boolean): TempTtsSettingsRecord {
+export function updateTempTtsEnabled(
+  voiceChannelId: string,
+  enabled: boolean,
+): TempTtsSettingsRecord {
   const database = getDatabase();
 
-  database.prepare(
-    `UPDATE temp_tts_settings
+  database
+    .prepare(
+      `UPDATE temp_tts_settings
     SET enabled = ?, updated_at = CURRENT_TIMESTAMP
     WHERE voice_channel_id = ?`,
-  ).run(enabled ? 1 : 0, voiceChannelId);
+    )
+    .run(enabled ? 1 : 0, voiceChannelId);
 
   const record = findTempTtsSettingsByVoiceChannelId(voiceChannelId);
 
@@ -123,14 +137,19 @@ export function updateTempTtsEnabled(voiceChannelId: string, enabled: boolean): 
   return record;
 }
 
-export function updateTempTtsVoiceKey(voiceChannelId: string, voiceKey: string): TempTtsSettingsRecord {
+export function updateTempTtsVoiceKey(
+  voiceChannelId: string,
+  voiceKey: string,
+): TempTtsSettingsRecord {
   const database = getDatabase();
 
-  database.prepare(
-    `UPDATE temp_tts_settings
+  database
+    .prepare(
+      `UPDATE temp_tts_settings
     SET voice_key = ?, updated_at = CURRENT_TIMESTAMP
     WHERE voice_channel_id = ?`,
-  ).run(voiceKey, voiceChannelId);
+    )
+    .run(voiceKey, voiceChannelId);
 
   const record = findTempTtsSettingsByVoiceChannelId(voiceChannelId);
 
@@ -141,8 +160,12 @@ export function updateTempTtsVoiceKey(voiceChannelId: string, voiceKey: string):
   return record;
 }
 
-export function deleteTempTtsSettingsByVoiceChannelId(voiceChannelId: string): void {
+export function deleteTempTtsSettingsByVoiceChannelId(
+  voiceChannelId: string,
+): void {
   const database = getDatabase();
 
-  database.prepare('DELETE FROM temp_tts_settings WHERE voice_channel_id = ?').run(voiceChannelId);
+  database
+    .prepare('DELETE FROM temp_tts_settings WHERE voice_channel_id = ?')
+    .run(voiceChannelId);
 }

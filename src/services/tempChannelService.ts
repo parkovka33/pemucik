@@ -55,14 +55,14 @@ async function getCategoryChannel(settings: GuildSettings, member: GuildMember):
   if (!category) {
     throw new TempChannelServiceError(
       'CATEGORY_NOT_FOUND',
-      'Не удалось найти настроенную категорию Noi. Запустите `/setup` ещё раз.',
+      'Не удалось найти настроенную категорию Pemucik. Запустите `/setup` ещё раз.',
     );
   }
 
   if (category.type !== ChannelType.GuildCategory) {
     throw new TempChannelServiceError(
       'CATEGORY_INVALID',
-      'Настроенная категория Noi больше не является корректной. Запустите `/setup` ещё раз.',
+      'Настроенная категория Pemucik больше не является корректной. Запустите `/setup` ещё раз.',
     );
   }
 
@@ -94,7 +94,7 @@ export async function createTempChannelForMember(
     type: ChannelType.GuildVoice,
     parent: category.id,
     userLimit: settings.defaultUserLimit,
-    reason: `Временная комната Noi для ${member.user.tag}`,
+    reason: `Временная комната Pemucik для ${member.user.tag}`,
   };
 
   if (permissionOverwrites.length > 0) {

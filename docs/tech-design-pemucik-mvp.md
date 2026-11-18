@@ -1,13 +1,13 @@
-# Technical Design Document: XenoVoice MVP
+# Technical Design Document: Pemucik MVP
 
 Historical note:
 This technical design describes the original MVP baseline.
 The live repository now includes post-MVP control expansion and stabilization work, so treat this document as the architectural foundation rather than the exact current command inventory.
-Use [README.md](/home/xenovoicik/xenovoice/README.md) and [MEMORY.md](/home/xenovoicik/xenovoice/MEMORY.md) when you need the latest active surfaces and priorities.
+Use [README.md](../README.md) and [MEMORY.md](../MEMORY.md) when you need the latest active surfaces and priorities.
 
 ## 1. Overview
 
-**App Name:** XenoVoice  
+**App Name:** Pemucik
 **Version:** MVP 1.0  
 **Platform:** Discord only  
 **Target Builder Level:** Vibe-coder / solo founder using AI agents  
@@ -18,7 +18,7 @@ Use [README.md](/home/xenovoicik/xenovoice/README.md) and [MEMORY.md](/home/xeno
 **Custom Domain:** Not required for MVP  
 **AI Product Features:** Not included in MVP  
 
-XenoVoice is a Discord bot that creates temporary voice channels on demand. A server admin sets up one “Join to Create” voice channel. When a member joins it, the bot creates a temporary voice room, moves the member into it, assigns ownership, gives the owner basic controls, and deletes the channel after it becomes empty.
+Pemucik is a Discord bot that creates temporary voice channels on demand. A server admin sets up one “Join to Create” voice channel. When a member joins it, the bot creates a temporary voice room, moves the member into it, assigns ownership, gives the owner basic controls, and deletes the channel after it becomes empty.
 
 The MVP goal is not to build the most advanced temporary voice bot. The goal is to build a reliable, safe, understandable, Discord-native bot that proves the core loop works in real servers.
 
@@ -28,7 +28,7 @@ The MVP goal is not to build the most advanced temporary voice bot. The goal is 
 
 ### Primary Recommendation: Node.js + TypeScript + discord.js v14 + SQLite + Small VPS
 
-This is the best stack for XenoVoice because it matches the PRD, your previous Discord bot experience, a hosting budget under $10/month, and the need for AI agents to generate understandable code.
+This is the best stack for Pemucik because it matches the PRD, your previous Discord bot experience, a hosting budget under $10/month, and the need for AI agents to generate understandable code.
 
 **Recommended stack:**
 
@@ -51,10 +51,10 @@ This is the best stack for XenoVoice because it matches the PRD, your previous D
    You have built a Discord moderation bot with discord.js v14 before. That makes this safer than switching to Python, Go, Firebase, or a no-code builder.
 
 2. **discord.js fits the product shape.**  
-   XenoVoice needs event-driven logic: listen for voice state updates, create channels, move users, edit permission overwrites, and respond to slash commands/buttons/modals. discord.js gives a high-level Node.js interface for Discord API objects and interactions.
+   Pemucik needs event-driven logic: listen for voice state updates, create channels, move users, edit permission overwrites, and respond to slash commands/buttons/modals. discord.js gives a high-level Node.js interface for Discord API objects and interactions.
 
 3. **SQLite is enough for the MVP.**  
-   XenoVoice only needs lightweight state: guild settings, generator channel IDs, temporary channel mappings, owner IDs, cooldowns, and metrics. A separate hosted database would increase cost and complexity without enough MVP benefit.
+   Pemucik only needs lightweight state: guild settings, generator channel IDs, temporary channel mappings, owner IDs, cooldowns, and metrics. A separate hosted database would increase cost and complexity without enough MVP benefit.
 
 4. **A small VPS fits the budget.**  
    The PRD target is about $4–8/month for hosting, with SQLite on the same server and no paid database. That is realistic for a small Discord bot MVP.
@@ -81,7 +81,7 @@ Use **Node.js + TypeScript + discord.js v14 + SQLite + VPS**.
 
 ### Trade-off
 
-This is not the absolute easiest setup. A pure hosted platform might feel easier at first. But for XenoVoice, the VPS approach gives the best balance of cost control, Discord event reliability, database simplicity, and long-term maintainability.
+This is not the absolute easiest setup. A pure hosted platform might feel easier at first. But for Pemucik, the VPS approach gives the best balance of cost control, Discord event reliability, database simplicity, and long-term maintainability.
 
 ---
 
@@ -89,7 +89,7 @@ This is not the absolute easiest setup. A pure hosted platform might feel easier
 
 ### Discord-native UI is feasible
 
-XenoVoice can use slash commands, message components, and modals for setup and owner controls. Discord interactions support commands, component clicks, and modal submissions, which fits `/setup`, `/panel`, rename modal, and user-limit modal.
+Pemucik can use slash commands, message components, and modals for setup and owner controls. Discord interactions support commands, component clicks, and modal submissions, which fits `/setup`, `/panel`, rename modal, and user-limit modal.
 
 ### Voice event handling is feasible
 
@@ -101,7 +101,7 @@ Discord supports channel resources, voice channel fields, and permission overwri
 
 ### Rate limits must be respected
 
-Discord applies rate limits per route and globally. XenoVoice should not repeatedly create, edit, or delete channels without cooldowns, retries, and error handling.
+Discord applies rate limits per route and globally. Pemucik should not repeatedly create, edit, or delete channels without cooldowns, retries, and error handling.
 
 ---
 
@@ -117,7 +117,7 @@ Discord Server
 Discord Gateway Event: voiceStateUpdate
    |
    v
-XenoVoice Bot
+Pemucik Bot
    |
    | 1. Check guild settings
    | 2. Check if joined channel is the generator
@@ -142,14 +142,14 @@ Cleanup Worker
 ### Core Design Principle
 
 **Never trust Discord state alone.**  
-Before deleting or editing a channel, XenoVoice should confirm the channel exists in the SQLite `temp_channels` table. This prevents accidental deletion of normal server channels.
+Before deleting or editing a channel, Pemucik should confirm the channel exists in the SQLite `temp_channels` table. This prevents accidental deletion of normal server channels.
 
 ---
 
 ## 6. Project Structure
 
 ```text
-xenovoice/
+pemucik/
 ├── src/
 │   ├── index.ts
 │   ├── config/
@@ -207,11 +207,11 @@ xenovoice/
 │   ├── backupSqlite.sh
 │   └── healthcheck.ts
 ├── data/
-│   └── xenovoice.sqlite
+│   └── pemucik.sqlite
 ├── logs/
 │   └── app.log
 ├── docs/
-│   ├── TROUBLESHOOTING.md
+│   ├── troubleshooting.md
 │   ├── DEPLOYMENT.md
 │   └── SECURITY.md
 ├── .env.example
@@ -236,7 +236,7 @@ DISCORD_TOKEN=your_bot_token
 DISCORD_CLIENT_ID=your_application_client_id
 DISCORD_GUILD_ID=optional_test_guild_id_for_dev_commands
 
-DATABASE_PATH=./data/xenovoice.sqlite
+DATABASE_PATH=./data/pemucik.sqlite
 LOG_LEVEL=info
 NODE_ENV=production
 
@@ -367,7 +367,7 @@ set -e
 mkdir -p backups
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 
-sqlite3 data/xenovoice.sqlite ".backup 'backups/xenovoice-$timestamp.sqlite'"
+sqlite3 data/pemucik.sqlite ".backup 'backups/pemucik-$timestamp.sqlite'"
 
 find backups -type f -mtime +14 -delete
 ```
@@ -384,7 +384,7 @@ Medium.
 
 ### Goal
 
-When a user joins the configured generator channel, XenoVoice creates a new temporary voice channel and moves the user into it.
+When a user joins the configured generator channel, Pemucik creates a new temporary voice channel and moves the user into it.
 
 ### Flow
 
@@ -421,7 +421,7 @@ Increment metrics
 ### AI prompt to build this feature
 
 ```text
-Implement the XenoVoice Join-to-Create flow in discord.js v14 + TypeScript.
+Implement the Pemucik Join-to-Create flow in discord.js v14 + TypeScript.
 
 Requirements:
 - Listen to voiceStateUpdate.
@@ -477,7 +477,7 @@ The cleanup service must use this order:
 5. Delete.
 6. Remove database row.
 
-Never delete just because a channel name “looks like” a XenoVoice channel.
+Never delete just because a channel name “looks like” a Pemucik channel.
 
 ---
 
@@ -508,7 +508,7 @@ An admin override should check for a Discord permission such as Manage Channels 
 ### AI prompt
 
 ```text
-Create an ownershipService for XenoVoice.
+Create an ownershipService for Pemucik.
 
 Requirements:
 - findTempChannelByOwner(guildId, userId)
@@ -531,12 +531,12 @@ Medium.
 
 `/panel` sends a control panel embed with buttons for owner controls.
 
-Discord supports application commands and message components, and component interactions are delivered back to the app when users click them. This fits the XenoVoice control panel model.
+Discord supports application commands and message components, and component interactions are delivered back to the app when users click them. This fits the Pemucik control panel model.
 
 ### Panel design
 
 ```text
-🎛️ XenoVoice Control Panel
+🎛️ Pemucik Control Panel
 
 Channel: Viktoria's Room
 Owner: @Viktoria
@@ -641,7 +641,7 @@ Connect: false
 
 ### Unlock implementation
 
-Remove only the specific deny for `Connect` that XenoVoice added, or restore to neutral if safe.
+Remove only the specific deny for `Connect` that Pemucik added, or restore to neutral if safe.
 
 ### Important trade-off
 
@@ -654,7 +654,7 @@ For MVP, implement this:
 1. Before lock, read current `@everyone` overwrite for the temp channel.
 2. Save previous state in memory or DB if needed.
 3. Apply deny `Connect`.
-4. On unlock, remove the deny created by XenoVoice without touching unrelated overwrites.
+4. On unlock, remove the deny created by Pemucik without touching unrelated overwrites.
 
 ---
 
@@ -707,7 +707,7 @@ Do not build the full fancy dropdown setup first. For the first MVP, use a simpl
   | Admin only
   v
 Check bot permissions
-Create or reuse category: XenoVoice
+Create or reuse category: Pemucik
 Create or reuse voice channel: ➕ Join to Create
 Save guild_settings
 Send success embed
@@ -716,7 +716,7 @@ Send success embed
 ### Setup success embed
 
 ```text
-✅ XenoVoice is ready!
+✅ Pemucik is ready!
 
 Users can now join:
 ➕ Join to Create
@@ -844,8 +844,8 @@ Use a production-ready Node.js LTS release. Node’s official release page says 
 ### Initial commands
 
 ```bash
-mkdir xenovoice
-cd xenovoice
+mkdir pemucik
+cd pemucik
 
 npm init -y
 
@@ -906,7 +906,7 @@ Ask for one feature at a time:
 ### Prompt template: feature implementation
 
 ```text
-We are building XenoVoice, a Discord-only temporary voice channel bot.
+We are building Pemucik, a Discord-only temporary voice channel bot.
 
 Stack:
 - Node.js
@@ -948,7 +948,7 @@ Code:
 ### Prompt template: debugging
 
 ```text
-I am building XenoVoice with discord.js v14 and TypeScript.
+I am building Pemucik with discord.js v14 and TypeScript.
 
 Expected behavior:
 [what should happen]
@@ -981,7 +981,7 @@ Please:
 - Create Discord application and bot.
 - Add `.env`.
 - Add basic login.
-- Log `XenoVoice online`.
+- Log `Pemucik online`.
 
 ### Day 2 — Slash Commands
 
@@ -1190,8 +1190,8 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install git sqlite3 -y
 
 # 4. Clone repo
-git clone <your-repo-url> xenovoice
-cd xenovoice
+git clone <your-repo-url> pemucik
+cd pemucik
 
 # 5. Install dependencies
 npm ci
@@ -1206,7 +1206,7 @@ npm run build
 npm run commands:register
 
 # 9. Start with PM2
-pm2 start dist/index.js --name xenovoice
+pm2 start dist/index.js --name pemucik
 
 # 10. Save PM2 process list
 pm2 save
@@ -1231,9 +1231,9 @@ Create `docs/DEPLOYMENT.md` with:
 
 ```bash
 pm2 status
-pm2 logs xenovoice
-pm2 restart xenovoice
-pm2 stop xenovoice
+pm2 logs pemucik
+pm2 restart pemucik
+pm2 stop pemucik
 pm2 save
 ```
 
@@ -1306,7 +1306,7 @@ Do not spend too much time mocking all of Discord for MVP.
 
 ## 19. Troubleshooting Guide
 
-Create `docs/TROUBLESHOOTING.md`.
+Create `docs/troubleshooting.md`.
 
 ### Problem: bot is offline
 
@@ -1314,7 +1314,7 @@ Check:
 
 ```bash
 pm2 status
-pm2 logs xenovoice
+pm2 logs pemucik
 ```
 
 Likely causes:
@@ -1398,7 +1398,7 @@ Immediate checks:
 
 ### User data
 
-XenoVoice stores Discord IDs, guild IDs, channel IDs, basic settings, ownership mappings, and simple metrics. It should not store chat content, voice content, private messages, or personal profile data beyond IDs needed for bot functionality.
+Pemucik stores Discord IDs, guild IDs, channel IDs, basic settings, ownership mappings, and simple metrics. It should not store chat content, voice content, private messages, or personal profile data beyond IDs needed for bot functionality.
 
 ### Abuse prevention
 
@@ -1479,7 +1479,7 @@ Consider:
 
 ### Multi-instance bot
 
-SQLite is not enough for multi-instance deployment. If XenoVoice needs horizontal scaling, migrate to PostgreSQL first.
+SQLite is not enough for multi-instance deployment. If Pemucik needs horizontal scaling, migrate to PostgreSQL first.
 
 ---
 
@@ -1513,7 +1513,7 @@ Reason: each adds edge cases. The first MVP should prove the core value: create,
 
 ## 24. Definition of Technical Success
 
-XenoVoice MVP is technically successful when:
+Pemucik MVP is technically successful when:
 
 - `/setup` works end-to-end.
 - Users can create temporary voice channels by joining the generator.
@@ -1536,7 +1536,7 @@ XenoVoice MVP is technically successful when:
 
 ## 25. Final Recommendation
 
-Build XenoVoice as a **single-process Node.js TypeScript Discord bot** using **discord.js v14**, **SQLite**, and a **small VPS**.
+Build Pemucik as a **single-process Node.js TypeScript Discord bot** using **discord.js v14**, **SQLite**, and a **small VPS**.
 
 The most important engineering principle is:
 
@@ -1599,7 +1599,7 @@ Proceed to **Part 4** to generate the `AGENTS.md` file and tool-specific configu
 
 These references were used to verify the technical assumptions and implementation direction:
 
-- XenoVoice PRD, uploaded document, 4 May 2026.
+- Pemucik PRD, uploaded document, 4 May 2026.
 - Discord Developer Docs — Interactions Overview: https://docs.discord.com/developers/interactions/overview
 - Discord Developer Docs — Application Commands: https://docs.discord.com/developers/interactions/application-commands
 - Discord Developer Docs — Components: https://docs.discord.com/developers/components/reference

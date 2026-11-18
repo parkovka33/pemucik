@@ -1,7 +1,7 @@
 # Security Policy
 
 ## Overview
-XenoVoice is an executable Discord bot. Security issues here can affect bot tokens, Discord server permissions, temporary channel safety, and operator trust.
+Pemucik is an executable Discord bot. Security issues here can affect bot tokens, Discord server permissions, temporary channel safety, and operator trust.
 
 ## Supported Versions
 
@@ -23,7 +23,7 @@ XenoVoice is an executable Discord bot. Security issues here can affect bot toke
 - Be careful with `Administrator`; it is useful for testing, but broader than production minimums
 
 ### Channel safety
-- XenoVoice should never delete a channel unless it is confirmed in SQLite `temp_channels`
+- Pemucik should never delete a channel unless it is confirmed in SQLite `temp_channels`
 - Permission overwrite edits should stay targeted and must not wipe unrelated overwrites
 - Cleanup changes should always be tested against the manual Discord verification loop
 
@@ -33,7 +33,7 @@ XenoVoice is an executable Discord bot. Security issues here can affect bot toke
 
 ## Reporting a vulnerability
 
-If you discover a security issue in XenoVoice:
+If you discover a security issue in Pemucik:
 
 1. Do **not** open a public issue with secrets or exploit details
 2. Use GitHub private vulnerability reporting for this repository if available

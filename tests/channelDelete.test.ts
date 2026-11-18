@@ -102,7 +102,7 @@ test('registerChannelDeleteHandler cleans tracked voice artifacts on external vo
     assert.equal(findTempChannelByChannelId('temp-voice'), null);
     assert.equal(findTempTextChannelByVoiceChannelId('temp-voice'), null);
     assert.equal(getTempTtsPlaybackStateSummary('guild-1'), null);
-    assert.deepEqual(deletedReasons, ['Noi: удаление связанного текстового канала для комнаты temp-voice']);
+    assert.deepEqual(deletedReasons, ['Pemucik: удаление связанного текстового канала для комнаты temp-voice']);
     assert.deepEqual(infoPayloads, [{
       event: 'tracked_temp_voice_channel_deleted_recovered',
       guildId: 'guild-1',
@@ -168,6 +168,75 @@ test('registerChannelDeleteHandler removes only tracked text metadata on externa
       channelId: 'text-1',
     }]);
     assert.deepEqual(errorPayloads, []);
+  } finally {
+    cleanup();
+  }
+});
+
+test('registerChannelDeleteHandler reports retryable linked cleanup without deleting the parent anchor', async () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedTrackedRoom();
+    upsertTempTextChannel({
+      textChannelId: 'text-1',
+      voiceChannelId: 'temp-voice',
+      guildId: 'guild-1',
+    });
+
+    let channelDeleteHandler: ((channel: unknown) => Promise<void>) | null = null;
+    const warningPayloads: Array<Record<string, unknown>> = [];
+    const client = {
+      on: (_event: string, handler: (channel: unknown) => Promise<void>) => {
+        channelDeleteHandler = handler;
+      },
+    };
+    const logger = {
+      info: () => undefined,
+      warn: (payload: Record<string, unknown>) => {
+        warningPayloads.push(payload);
+      },
+      error: () => undefined,
+    };
+
+    registerChannelDeleteHandler(client as never, logger as never);
+    if (channelDeleteHandler === null) {
+      assert.fail('channelDelete handler was not registered');
+    }
+    const registeredHandler: (channel: unknown) => Promise<void> = channelDeleteHandler;
+    const voiceChannel = {
+      id: 'temp-voice',
+      type: ChannelType.GuildVoice,
+      guild: {
+        id: 'guild-1',
+        channels: {
+          fetch: async (channelId: string) => {
+            assert.equal(channelId, 'text-1');
+            return {
+              id: 'text-1',
+              type: ChannelType.GuildText,
+              delete: async () => {
+                throw new Error('injected text delete failure');
+              },
+            };
+          },
+        },
+      },
+    };
+
+    await registeredHandler(voiceChannel as never);
+
+    assert.notEqual(findTempChannelByChannelId('temp-voice'), null);
+    assert.notEqual(findTempTextChannelByVoiceChannelId('temp-voice'), null);
+    assert.deepEqual(warningPayloads, [
+      {
+        event: 'tracked_temp_voice_channel_cleanup_retry_required',
+        guildId: 'guild-1',
+        channelId: 'temp-voice',
+        stage: 'linked_text',
+        error: 'injected text delete failure',
+      },
+    ]);
   } finally {
     cleanup();
   }

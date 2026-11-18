@@ -1,6 +1,6 @@
 # Support
 
-This page explains how to get help with XenoVoice and where to report different kinds of problems.
+This page explains how to get help with Pemucik and where to report different kinds of problems.
 
 ## Where to ask what
 

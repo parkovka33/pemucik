@@ -8,7 +8,7 @@ import { safeReply } from '../utils/safeReply';
 export const panelCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('panel')
-    .setDescription('Открыть панель управления комнатой Noi.'),
+    .setDescription('Открыть панель управления комнатой Pemucik.'),
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild || !interaction.member) {
       await safeReply(interaction, {
@@ -52,7 +52,7 @@ export const panelCommand: AppCommand = {
       }, error);
 
       const embed = await applyBotAvatarEmbedColor(new EmbedBuilder()
-        .setTitle('Панель Noi временно недоступна')
+        .setTitle('Панель Pemucik временно недоступна')
         .setDescription('При открытии панели управления произошла ошибка.'), interaction.client);
 
       await safeReply(interaction, { embeds: [embed], ephemeral: true });

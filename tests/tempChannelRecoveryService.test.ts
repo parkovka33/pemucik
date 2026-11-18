@@ -12,6 +12,10 @@ import {
 } from '../src/db/repositories/tempTextChannelsRepo';
 import { findTempChannelByChannelId, insertTempChannel } from '../src/db/repositories/tempChannelsRepo';
 import {
+  findTempTtsSettingsByVoiceChannelId,
+  upsertTempTtsSettings,
+} from '../src/db/repositories/tempTtsSettingsRepo';
+import {
   cleanupDeletedTrackedTextChannel,
   recoverTrackedTempChannelsForGuild,
 } from '../src/services/tempChannelRecoveryService';
@@ -90,11 +94,12 @@ test('recoverTrackedTempChannelsForGuild removes stale tracked voice and linked 
     assert.deepEqual(summary, {
       scanned: 1,
       removedStale: 1,
+      retryPending: 0,
       checkedEmpty: 0,
       deletedEmpty: 0,
       syncedLinkedText: 0,
     });
-    assert.deepEqual(deletedReasons, ['Noi: удаление связанного текстового канала для комнаты temp-voice']);
+    assert.deepEqual(deletedReasons, ['Pemucik: удаление связанного текстового канала для комнаты temp-voice']);
     assert.equal(findTempChannelByChannelId('temp-voice'), null);
     assert.equal(findTempTextChannelByVoiceChannelId('temp-voice'), null);
     assert.equal(getTempTtsPlaybackStateSummary('guild-1'), null);
@@ -165,13 +170,14 @@ test('recoverTrackedTempChannelsForGuild deletes an existing empty tracked room 
     assert.deepEqual(summary, {
       scanned: 1,
       removedStale: 0,
+      retryPending: 0,
       checkedEmpty: 1,
       deletedEmpty: 1,
       syncedLinkedText: 0,
     });
     assert.deepEqual(deletedReasons, [
-      'Noi: удаление пустой временной комнаты',
-      'Noi: удаление связанного текстового канала для комнаты temp-voice',
+      'Pemucik: удаление пустой временной комнаты',
+      'Pemucik: удаление связанного текстового канала для комнаты temp-voice',
     ]);
     assert.equal(findTempChannelByChannelId('temp-voice'), null);
     assert.equal(findTempTextChannelByVoiceChannelId('temp-voice'), null);
@@ -198,6 +204,92 @@ test('cleanupDeletedTrackedTextChannel removes only tracked linked text metadata
     assert.equal(findTempTextChannelByTextChannelId('text-1'), null);
     assert.equal(cleanupDeletedTrackedTextChannel('text-missing'), false);
   } finally {
+    cleanup();
+  }
+});
+
+test('startup recovery preserves its database anchor when linked text deletion needs a retry', async () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedTrackedRoom();
+    upsertTempTextChannel({
+      textChannelId: 'text-1',
+      voiceChannelId: 'temp-voice',
+      guildId: 'guild-1',
+    });
+    upsertTempTtsSettings({
+      voiceChannelId: 'temp-voice',
+      guildId: 'guild-1',
+      enabled: true,
+      voiceKey: 'ru-alt',
+    });
+    seedTempTtsPlaybackStateForTests({
+      guildId: 'guild-1',
+      queuedVoiceChannelIds: ['temp-voice'],
+      connectedChannelId: 'temp-voice',
+    });
+
+    let textDeleteAttempts = 0;
+    const deletedChannelIds: string[] = [];
+    const guild = {
+      id: 'guild-1',
+      channels: {
+        fetch: async (channelId: string) => {
+          if (channelId === 'temp-voice') {
+            return null;
+          }
+
+          assert.equal(channelId, 'text-1');
+          return {
+            id: 'text-1',
+            type: ChannelType.GuildText,
+            delete: async () => {
+              textDeleteAttempts += 1;
+
+              if (textDeleteAttempts === 1) {
+                throw new Error('injected Discord permission failure');
+              }
+
+              deletedChannelIds.push('text-1');
+            },
+          };
+        },
+      },
+    };
+
+    const firstSummary = await recoverTrackedTempChannelsForGuild(guild as never);
+
+    assert.deepEqual(firstSummary, {
+      scanned: 1,
+      removedStale: 0,
+      retryPending: 1,
+      checkedEmpty: 0,
+      deletedEmpty: 0,
+      syncedLinkedText: 0,
+    });
+    assert.notEqual(findTempChannelByChannelId('temp-voice'), null);
+    assert.notEqual(findTempTextChannelByVoiceChannelId('temp-voice'), null);
+    assert.equal(findTempTtsSettingsByVoiceChannelId('temp-voice')?.voiceKey, 'ru-alt');
+    assert.equal(getTempTtsPlaybackStateSummary('guild-1'), null);
+    assert.deepEqual(deletedChannelIds, []);
+
+    const secondSummary = await recoverTrackedTempChannelsForGuild(guild as never);
+
+    assert.deepEqual(secondSummary, {
+      scanned: 1,
+      removedStale: 1,
+      retryPending: 0,
+      checkedEmpty: 0,
+      deletedEmpty: 0,
+      syncedLinkedText: 0,
+    });
+    assert.equal(findTempChannelByChannelId('temp-voice'), null);
+    assert.equal(findTempTextChannelByVoiceChannelId('temp-voice'), null);
+    assert.equal(findTempTtsSettingsByVoiceChannelId('temp-voice'), null);
+    assert.deepEqual(deletedChannelIds, ['text-1']);
+  } finally {
+    destroyAllTempTtsPlayback();
     cleanup();
   }
 });

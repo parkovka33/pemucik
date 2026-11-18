@@ -1,7 +1,7 @@
 # Code Patterns
 
 ## Purpose
-This file defines the implementation patterns the agent should follow for XenoVoice.
+This file defines the implementation patterns the agent should follow for Pemucik.
 Prefer these patterns over inventing new ones.
 
 ## Architecture Pattern

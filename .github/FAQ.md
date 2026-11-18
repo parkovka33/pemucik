@@ -1,10 +1,10 @@
 # FAQ
 
-## What is XenoVoice?
+## What is Pemucik?
 
-XenoVoice is a Discord-only bot that creates temporary voice channels on demand. An admin runs `/setup`, members join the generator voice channel, and XenoVoice creates and later cleans up temporary rooms automatically.
+Pemucik is a Discord-only bot that creates temporary voice channels on demand. An admin runs `/setup`, members join the generator voice channel, and Pemucik creates and later cleans up temporary rooms automatically.
 
-## Does XenoVoice need a website?
+## Does Pemucik need a website?
 
 No. The MVP is intentionally Discord-only. Setup and owner controls happen through slash commands and Discord components.
 
@@ -45,8 +45,8 @@ The current Discord-facing copy is Russian-first. The broader multilingual plan 
 Start with:
 
 - [README.md](../README.md)
-- [docs/QUICKSTART.md](../docs/QUICKSTART.md)
-- [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md)
+- [docs/quickstart.md](../docs/quickstart.md)
+- [docs/troubleshooting.md](../docs/troubleshooting.md)
 
 ## Where do I report bugs or request changes?
 

@@ -1,8 +1,8 @@
-# Contributing to XenoVoice
+# Contributing to Pemucik
 
 Pull requests and issue reports are welcome.
 
-This repository contains the XenoVoice Discord bot codebase and its supporting docs.
+This repository contains the Pemucik Discord bot codebase and its supporting docs.
 
 ## Before you start
 
@@ -46,7 +46,7 @@ Open an issue first for any **large** change so we can agree on direction.
 - Update any relevant docs (`README.md`, `docs/`, `agent_docs/`, `MEMORY.md`) when behavior or operator guidance changes.
 - Add a short description explaining:
   - What changed.
-  - Why it helps XenoVoice operators or users.
+  - Why it helps Pemucik operators or users.
   - Any behavior or safety trade-offs.
 
 Maintainers may ask for tweaks before merging.

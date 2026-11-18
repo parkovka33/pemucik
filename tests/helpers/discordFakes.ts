@@ -26,6 +26,12 @@ export interface PermissionEditCall {
   patch: Partial<Record<ManagedPermissionName, boolean | null>>;
 }
 
+export interface PermissionEditFailure {
+  call: number;
+  timing: 'before' | 'after';
+  error?: Error;
+}
+
 export function createOverwrite(
   id: Snowflake,
   options?: {
@@ -47,9 +53,13 @@ export function createOverwrite(
   return overwrite;
 }
 
-export function createPermissionOverwriteManager(initial: FakeOverwrite[]) {
+export function createPermissionOverwriteManager(
+  initial: FakeOverwrite[],
+  initialFailures: PermissionEditFailure[] = [],
+) {
   const cache = new Collection<Snowflake, FakeOverwrite>();
   const editCalls: PermissionEditCall[] = [];
+  const failures = [...initialFailures];
 
   initial.forEach((overwrite) => {
     cache.set(overwrite.id, overwrite);
@@ -58,11 +68,20 @@ export function createPermissionOverwriteManager(initial: FakeOverwrite[]) {
   return {
     cache,
     editCalls,
+    failures,
     async edit(
       id: Snowflake,
       patch: Partial<Record<ManagedPermissionName, boolean | null>>,
     ): Promise<FakeOverwrite> {
       editCalls.push({ id, patch: { ...patch } });
+      const call = editCalls.length;
+      const beforeFailure = failures.find(
+        (failure) => failure.call === call && failure.timing === 'before',
+      );
+
+      if (beforeFailure) {
+        throw beforeFailure.error ?? new Error(`Injected failure before permission edit ${call}.`);
+      }
 
       const existing = cache.get(id) ?? createOverwrite(id);
 
@@ -89,6 +108,15 @@ export function createPermissionOverwriteManager(initial: FakeOverwrite[]) {
       });
 
       cache.set(id, existing);
+
+      const afterFailure = failures.find(
+        (failure) => failure.call === call && failure.timing === 'after',
+      );
+
+      if (afterFailure) {
+        throw afterFailure.error ?? new Error(`Injected failure after permission edit ${call}.`);
+      }
+
       return existing;
     },
   };

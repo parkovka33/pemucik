@@ -1,7 +1,7 @@
 # Testing Strategy
 
 ## Testing Philosophy
-Manual testing is required for XenoVoice because the core product behavior depends on real Discord voice events, permissions, member movement, and channel state. For the MVP, real Discord verification matters more than building a large mocked test suite.
+Manual testing is required for Pemucik because the core product behavior depends on real Discord voice events, permissions, member movement, and channel state. For the MVP, real Discord verification matters more than building a large mocked test suite.
 
 ## Frameworks
 - **Unit Tests:** No framework is explicitly mandated yet in the source documents. Add a lightweight TypeScript-friendly unit test runner later for pure logic only.
@@ -54,9 +54,9 @@ Run this loop after each feature and fix failures before moving on:
 Use this staged checklist for the current post-MVP validation tail. Run it in order and do not start the next feature milestone until all critical failures here are understood.
 
 ### Preflight
-1. Run `npm run lint`.
-2. Run `npm run build`.
-3. Run `npm run db:migrate` on the same database the bot will use for the Discord pass.
+1. Run `npm test`.
+2. Run `npm run lint`.
+3. Restore a backup into a disposable database, run `npm run db:migrate` against that copy, and verify integrity, foreign keys, and duplicate-owner preflight before touching any persistent test-server database.
 4. Run `npm run commands:register` if the slash schema changed since the last live pass.
 5. Start the bot with `npm run dev`.
 6. Test in a server where the bot effectively has `Administrator` while you validate product behavior first; do a stricter permission pass only after the main flows are green.
@@ -70,7 +70,7 @@ Prepare:
 
 Verify these subcommands:
 - `/voice lock`: new members cannot join; owner, bot, and admin role still can.
-- `/voice unlock`: the room opens again, and any pre-existing non-XenoVoice overwrite on `@everyone` is not erased.
+- `/voice unlock`: the room opens again, and any pre-existing non-Pemucik overwrite on `@everyone` is not erased.
 - `/voice claim`: a member inside the room can claim only when the previous owner is absent; `temp_channels.owner_user_id` changes to the claimant.
 - `/voice ghost`: room becomes hidden to ordinary members, but owner, bot, and admin role still keep visibility.
 - `/voice unghost`: room becomes visible again without breaking admin visibility afterward.
@@ -81,7 +81,7 @@ Verify these subcommands:
 - `/voice status status:<text>`: the custom room status updates through the raw REST-backed path.
 
 Safety assertions during Stage 1:
-- `unlock` must clear only the XenoVoice-managed `Connect` deny on `@everyone`; unrelated allows/denies must survive.
+- `unlock` must clear only the Pemucik-managed `Connect` deny on `@everyone`; unrelated allows/denies must survive.
 - `ghost` and `unghost` must not remove admin access or bot visibility.
 - `/voice ...` commands must fail cleanly on ordinary users without touching non-temp voice channels.
 - The normal non-temp canary voice channel must remain unchanged in Discord and absent from `temp_channels`.
@@ -96,7 +96,7 @@ Use a clean server or deliberately reset the test category layout first.
 
 Verify:
 - `/setup editable:true`: a newly created temp-room owner gets native Discord editing capability (`Manage Channels`) in the room.
-- `/setup editable:false`: a newly created temp-room owner can still use XenoVoice controls but does not receive native channel-edit rights.
+- `/setup editable:false`: a newly created temp-room owner can still use Pemucik controls but does not receive native channel-edit rights.
 - `/setup category:<custom category>`: the generator and future temp rooms land in the selected category, not the old default one.
 - `/setup permission:category`: a new temp room inherits category-level permissions and does not mirror extra generator-only overwrites.
 - `/setup permission:generator`: a new temp room clones the generator overwrites, including deliberate custom non-default overwrites used for the test.
@@ -156,32 +156,50 @@ Use this checklist specifically for the new `/voice text` milestone after local 
 - After voice-room cleanup, no row remains for that `voice_channel_id`.
 
 ## Local Piper Playback Checks
-Use this before the eventual live Discord pass when working on the `/voice tts` runtime milestone.
+Use this before the recovered `/voice tts` live Discord pass.
 
 ### Preflight
 1. Ensure `PIPER_COMMAND` resolves on the host or that plain `piper` is available on `PATH`.
 2. Ensure the curated model env vars used by the selected preset exist: `PIPER_MODEL_DEFAULT`, `PIPER_MODEL_RU_ALT`, `PIPER_MODEL_EN_DEFAULT`.
-3. Ensure FFmpeg is available on `PATH` for Discord voice playback.
-4. Run the focused TTS unit tests plus `npm run lint` and `npm run build`.
+3. Ensure FFmpeg is available on `PATH` for Discord voice playback and `opusscript` appears in the `@discordjs/voice` dependency report.
+4. Use Node 24, matching the repository engine contract.
+5. Run `npm test`, `npm run lint`, `npm run build`, and `npm audit --omit=dev`.
 
 ### Local Runtime Assertions
 - Accepted linked-temp-text messages produce `voice_tts_message_ready` and then `voice_tts_message_queued`.
 - Missing Piper model env vars or an unavailable Piper binary log `voice_tts_runtime_unavailable` or `voice_tts_playback_failed` without crashing the bot.
-- Burst traffic in one tracked room respects the bounded room queue and logs `voice_tts_queue_overflow` instead of growing unbounded memory.
+- Burst traffic in one tracked room respects the five-message room queue and logs `voice_tts_queue_overflow` instead of growing unbounded memory.
+- Traffic across rooms respects the twenty-message guild queue.
+- A stalled Piper process is killed after 30 seconds and its partial WAV is removed.
+- Disabling TTS or deleting a room cancels active synthesis/playback and clears that room's queued work.
 - Two tracked rooms in the same guild can enqueue work without crashing; playback is serialized at the guild level because one bot can hold only one active voice connection per guild.
 - Stopping the process disconnects the playback runtime cleanly.
 
-## `/voice tts` Future Live Pass
-Run this now that the local cleanup/recovery milestone is green and the host has Piper plus FFmpeg available.
+## `/voice tts` Live Pass
+Run this in a disposable guild after the local checks are green and the host has Piper plus FFmpeg available. Enable the Message Content privileged intent in the Discord Developer Portal before starting the bot.
 
 ### `/voice tts` Checks
-- `/voice tts enabled:true` succeeds only for the temp-room owner or an admin and only after `/voice text` exists.
-- Messages in the linked temp text channel are read aloud in the matching tracked temp voice room.
+- `/voice tts enabled:true` succeeds only for the temp-room owner or an admin and only when runtime preflight passes.
+- `/voice tts enabled:true` returns a clear private error when Piper, the selected model, FFmpeg, or Opus support is unavailable.
+- Messages in native voice-channel chat are read aloud in the matching tracked temporary voice room.
+- A stored linked temporary text channel remains a working legacy input fallback.
+- A message author outside the exact target voice room is ignored, even if another member keeps the room occupied.
 - Messages in unrelated text channels remain ignored.
-- `/voice tts enabled:false` stops future playback for that room.
+- `/voice tts enabled:false` cancels active work and stops future playback for that room.
 - `/voice tts voice:<preset>` affects later queued messages for that room.
 - Overflow traffic logs safely and does not crash the bot.
-- If Piper runtime config is missing, the bot stays online and logs the failure clearly.
+- Removing the selected room while Piper is synthesizing cancels the job, removes temporary audio, and does not reconnect to the deleted room.
+- The bot disconnects after the idle timeout and does not remain in voice after shutdown.
+- If the connection fails before Ready, retain the close code plus `voice_tts_connection_state_change`, `voice_tts_connection_disconnected`, and `voice_tts_connection_error` logs. Check host/provider UDP rules before changing playback code.
+
+### `/voice tts` SQL Spot Checks
+
+- `SELECT voice_channel_id, guild_id, enabled, voice_key FROM temp_tts_settings;`
+- Enabling or changing a preset updates only the intended field for the tracked room.
+- Deleting the tracked `temp_channels` row through the normal safe cleanup path removes its TTS settings through the existing foreign-key relationship.
+- No TTS settings row exists for a non-temporary canary channel.
+
+**In simple terms:** The live pass must prove authorization, exact-room isolation, audible playback, cancellation, and cleanup without ever treating a normal voice channel as temporary.
 
 ## Safety-Focused Regression Checks
 Always verify these after touching cleanup, permissions, or ownership logic:
@@ -189,12 +207,26 @@ Always verify these after touching cleanup, permissions, or ownership logic:
 - the bot does not delete normal voice channels
 - unlock does not wipe unrelated permission overwrites
 - admins are not accidentally locked out
-- failed Discord API calls do not leave stale DB rows
+- uncertain child-cleanup failures retain their tracked parent row and retry later instead of losing the safety anchor
 - one user cannot create many active temp channels
 - cooldowns prevent spammy create/rename loops
 
+## Protected Remediation Release Gates
+
+These checks are still required after the local REM-003, REM-005, REM-006, and REM-012 implementation:
+
+1. Restore a production-shaped SQLite backup to a disposable path. Run the migration twice, confirm versions 1–4 in `schema_migrations`, check the unique guild-owner index, and run `PRAGMA integrity_check` plus `PRAGMA foreign_key_check`.
+2. If duplicate `(guild_id, owner_user_id)` rows exist, confirm migration 4 stops without deleting or merging anything. Resolve the data only through an explicit operator decision.
+3. In a disposable Discord guild, add unrelated `Connect` and `ViewChannel` overwrites, an Administrator role, a ManageChannels-only role, and deliberate owner/bot denies. Verify lock/ghost fail closed on unsafe denies and preserve every unrelated bit.
+4. Remove the bot's ability to delete a linked temporary text channel, delete the voice room, and confirm the parent row, mapping, and TTS settings remain. Restore permission and restart; recovery should finish the cleanup.
+5. Rapidly leave and rejoin the generator from one account. Confirm only one tracked room exists, the member is reused or moved once, and the non-temp canary is untouched.
+6. Restart between channel creation, tracking, and member movement where practical. Confirm every database-confirmed room is recoverable and any untracked creation failure produces an operator-visible orphan log instead of automatic deletion.
+
+**In simple terms:** Local mocks cover failures deterministically; these checks prove real Discord timing and a real-world-shaped database behave the same way before release.
+
 ## Pre-Commit / Pre-Checkpoint Checks
 Before marking work complete, run as many of these as the current scaffold supports:
+- `npm test`
 - `npm run lint`
 - `npm run build`
 - `npm run commands:register` when command definitions changed

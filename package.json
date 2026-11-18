@@ -1,43 +1,49 @@
 {
-  "name": "xenovoice",
+  "name": "pemucik",
   "version": "0.1.0",
   "private": true,
-  "description": "Discord-only temporary voice channel bot for XenoVoice MVP.",
+  "description": "Discord-only temporary voice channel bot for Pemucik MVP.",
   "engines": {
-    "node": ">=20"
+    "node": ">=24 <25"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/*.test.js",
     "start": "node dist/src/index.js",
-    "pm2:start": "pm2 start npm --name noi-bot -- start",
-    "pm2:stop": "pm2 stop noi-bot",
-    "pm2:restart": "pm2 restart noi-bot",
-    "pm2:delete": "pm2 delete noi-bot",
-    "pm2:logs": "pm2 logs noi-bot",
+    "pm2:start": "pm2 start npm --name pemucik-bot -- start",
+    "pm2:stop": "pm2 stop pemucik-bot",
+    "pm2:restart": "pm2 restart pemucik-bot",
+    "pm2:delete": "pm2 delete pemucik-bot",
+    "pm2:logs": "pm2 logs pemucik-bot",
     "pm2:save": "pm2 save",
     "pm2:startup": "pm2 startup",
-    "pm2:status": "pm2 status noi-bot",
+    "pm2:status": "pm2 status pemucik-bot",
     "commands:register": "tsx scripts/registerCommands.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "lint": "eslint src scripts tests --ext .ts",
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@discordjs/voice": "^0.18.0",
-    "better-sqlite3": "^12.9.0",
-    "discord.js": "^14.17.3",
-    "dotenv": "^16.4.7"
+    "@discordjs/voice": "^0.19.2",
+    "better-sqlite3": "^12.11.1",
+    "discord.js": "^14.28.1",
+    "dotenv": "^16.4.7",
+    "opusscript": "^0.0.8"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
+    "@eslint/js": "^9.39.5",
     "@types/better-sqlite3": "^7.6.12",
-    "@types/node": "^22.10.2",
-    "eslint": "^9.17.0",
+    "@types/node": "^24.19.2",
+    "eslint": "^9.39.5",
     "globals": "^15.14.0",
-    "prettier": "^3.4.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.2"
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.2": true
   }
 }

@@ -1,6 +1,9 @@
 import { ChannelType, type Message, type VoiceChannel } from 'discord.js';
 
-import { TEMP_TTS_MAX_MESSAGE_LENGTH } from '../config/constants';
+import {
+  TEMP_TTS_MAX_MESSAGE_LENGTH,
+  TEMP_TTS_USER_COOLDOWN_MS,
+} from '../config/constants';
 import { findTempTtsSettingsByVoiceChannelId } from '../db/repositories/tempTtsSettingsRepo';
 import { findTempTextChannelByTextChannelId } from '../db/repositories/tempTextChannelsRepo';
 import { findTempChannelByChannelId } from '../db/repositories/tempChannelsRepo';
@@ -16,7 +19,9 @@ export type TempTtsMessageSkipReason =
   | 'message_too_long'
   | 'voice_channel_missing'
   | 'voice_channel_invalid'
-  | 'voice_channel_empty';
+  | 'voice_channel_empty'
+  | 'author_not_in_voice_channel'
+  | 'rate_limited';
 
 export interface AcceptedTempTtsMessage {
   status: 'accepted';
@@ -38,17 +43,51 @@ export interface SkippedTempTtsMessage {
   messageLength?: number;
 }
 
-export type TempTtsMessageIntakeResult = AcceptedTempTtsMessage | SkippedTempTtsMessage;
+export type TempTtsMessageIntakeResult =
+  AcceptedTempTtsMessage | SkippedTempTtsMessage;
 
-type TempTtsIntakeMessage = Pick<Message, 'author' | 'channelId' | 'content' | 'guild' | 'guildId'>;
+type TempTtsIntakeMessage = Pick<
+  Message,
+  'author' | 'channelId' | 'content' | 'guild' | 'guildId'
+>;
 
 interface ResolvedTempTtsSource {
   textChannelId: string;
   voiceChannelId: string;
 }
 
+const acceptedMessageTimes = new Map<string, number>();
+
+export function consumeTempTtsUserCooldown(
+  guildId: string,
+  userId: string,
+  now = Date.now(),
+): boolean {
+  const key = `${guildId}:${userId}`;
+  const lastAcceptedAt = acceptedMessageTimes.get(key);
+
+  if (
+    lastAcceptedAt !== undefined &&
+    now - lastAcceptedAt < TEMP_TTS_USER_COOLDOWN_MS
+  ) {
+    return false;
+  }
+
+  acceptedMessageTimes.set(key, now);
+  return true;
+}
+
+export function resetTempTtsUserCooldownsForTests(): void {
+  acceptedMessageTimes.clear();
+}
+
 function isUnknownChannelError(error: unknown): error is { code: number } {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 10003;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 10003
+  );
 }
 
 function normalizeTempTtsMessageContent(content: string): string {
@@ -82,7 +121,9 @@ async function fetchTrackedVoiceChannel(
   return channel;
 }
 
-function resolveTempTtsSource(message: TempTtsIntakeMessage): ResolvedTempTtsSource | null {
+function resolveTempTtsSource(
+  message: TempTtsIntakeMessage,
+): ResolvedTempTtsSource | null {
   const trackedVoiceRoom = findTempChannelByChannelId(message.channelId);
 
   if (trackedVoiceRoom) {
@@ -92,7 +133,9 @@ function resolveTempTtsSource(message: TempTtsIntakeMessage): ResolvedTempTtsSou
     };
   }
 
-  const linkedTextChannel = findTempTextChannelByTextChannelId(message.channelId);
+  const linkedTextChannel = findTempTextChannelByTextChannelId(
+    message.channelId,
+  );
 
   if (!linkedTextChannel) {
     return null;
@@ -151,7 +194,9 @@ export async function resolveTempTtsMessageIntake(
     };
   }
 
-  const roomTtsSettings = findTempTtsSettingsByVoiceChannelId(trackedVoiceRoom.channelId);
+  const roomTtsSettings = findTempTtsSettingsByVoiceChannelId(
+    trackedVoiceRoom.channelId,
+  );
 
   if (!roomTtsSettings?.enabled) {
     return {
@@ -202,7 +247,10 @@ export async function resolveTempTtsMessageIntake(
     };
   }
 
-  const voiceChannel = await fetchTrackedVoiceChannel(message, trackedVoiceRoom.channelId);
+  const voiceChannel = await fetchTrackedVoiceChannel(
+    message,
+    trackedVoiceRoom.channelId,
+  );
 
   if (!voiceChannel) {
     return {
@@ -217,10 +265,10 @@ export async function resolveTempTtsMessageIntake(
   }
 
   if (
-    typeof voiceChannel !== 'object'
-    || voiceChannel === null
-    || !('type' in voiceChannel)
-    || voiceChannel.type !== ChannelType.GuildVoice
+    typeof voiceChannel !== 'object' ||
+    voiceChannel === null ||
+    !('type' in voiceChannel) ||
+    voiceChannel.type !== ChannelType.GuildVoice
   ) {
     return {
       status: 'skipped',
@@ -239,6 +287,22 @@ export async function resolveTempTtsMessageIntake(
     return {
       status: 'skipped',
       reason: 'voice_channel_empty',
+      guildId: message.guildId,
+      authorId: message.author.id,
+      textChannelId: source.textChannelId,
+      voiceChannelId: trackedVoiceRoom.channelId,
+      messageLength: normalizedContent.length,
+    };
+  }
+
+  const authorVoiceChannelId = message.guild.voiceStates.cache.get(
+    message.author.id,
+  )?.channelId;
+
+  if (authorVoiceChannelId !== trackedVoiceRoom.channelId) {
+    return {
+      status: 'skipped',
+      reason: 'author_not_in_voice_channel',
       guildId: message.guildId,
       authorId: message.author.id,
       textChannelId: source.textChannelId,

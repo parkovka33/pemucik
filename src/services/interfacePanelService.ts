@@ -110,7 +110,7 @@ export async function buildPersistentInterfaceEmbed(guild: Guild): Promise<Embed
     .setTitle(INTERFACE_MESSAGE_TITLE)
     .setDescription(
       [
-        '**One interface, many owners.** Noi применяет действие к временной комнате, связанной с **вашим Discord ID**.',
+        '**One interface, many owners.** Pemucik применяет действие к временной комнате, связанной с **вашим Discord ID**.',
         '**Все ответы приватные.** Любой результат или ошибка ниже видны только тому, кто нажал кнопку.',
         buildLegendGrid(),
       ].join('\n\n'),
@@ -344,7 +344,7 @@ export async function resolvePersistentInterfaceTarget(member: GuildMember): Pro
 
   throw new PanelServiceError(
     'TEMP_CHANNEL_NOT_FOUND',
-    'У вас сейчас нет временной комнаты Noi, привязанной к вашему аккаунту.',
+    'У вас сейчас нет временной комнаты Pemucik, привязанной к вашему аккаунту.',
   );
 }
 

@@ -1,10 +1,10 @@
-# XenoVoice VPS Migration
+# Pemucik VPS Migration
 
-This guide is for moving XenoVoice to a new VPS without losing the current bot state.
+This guide is for moving Pemucik to a new VPS without losing the current bot state.
 
 ## Important safety note
 
-As of 2026-05-07, the current `origin` repository `https://github.com/tigakki/xenovoice.git` is **public**. Do not push `.env`, SQLite backups, or other runtime data to that remote.
+As of the current repository checkout, `origin` is `https://github.com/parkovka33/pemucik.git`. Confirm its visibility before pushing, and never push `.env`, SQLite backups, or other runtime data to any remote.
 
 Use one of these options instead:
 
@@ -14,7 +14,7 @@ Use one of these options instead:
 ## What you must preserve
 
 - the git repository with the bot code
-- the SQLite database at `data/xenovoice.sqlite`
+- the SQLite database at `data/pemucik.sqlite`, or the legacy pre-rebrand `data/xenovoice.sqlite` used by an existing installation
 - the Discord/runtime secrets stored in `.env`
 
 ## 1. Prepare the old VPS
@@ -24,7 +24,7 @@ Recommended: stop the running bot first so the migration snapshot is easy to rea
 If you use PM2, stop it with your real process name, for example:
 
 ```bash
-pm2 stop xenovoice
+pm2 stop pemucik
 ```
 
 Then build the repo and create a consistent SQLite backup:
@@ -43,7 +43,7 @@ backups/migration-2026-05-07T12-34-56Z/
 
 Inside it you will get:
 
-- `xenovoice.sqlite`
+- `pemucik.sqlite`
 - `metadata.json`
 - `RESTORE-NOTES.txt`
 - `.env.example`
@@ -54,7 +54,7 @@ Inside it you will get:
 
 Because SSH is not configured, use HTTPS with a GitHub Personal Access Token (PAT).
 
-First create a new private repository in GitHub, for example `xenovoice-private-backup`.
+First create a new private repository in GitHub, for example `pemucik-private-backup`.
 
 Then add it as a new remote:
 
@@ -87,7 +87,7 @@ The PAT needs repository write access to that private repo. A fine-grained token
 
 Before the old VPS expires, keep these two items outside GitHub as well:
 
-1. the backup database from `backups/migration-.../xenovoice.sqlite`
+1. the backup database from `backups/migration-.../pemucik.sqlite`
 2. the current `.env`
 
 If you want a belt-and-suspenders backup, download both files to your local machine before switching hosts.
@@ -130,10 +130,10 @@ Restore the SQLite data:
 
 ```bash
 mkdir -p data
-cp /path/to/xenovoice.sqlite data/xenovoice.sqlite
+cp /path/to/pemucik.sqlite data/pemucik.sqlite
 ```
 
-If your old `.env` used a custom `DATABASE_PATH`, restore the file into that exact path instead.
+If your old `.env` used a custom `DATABASE_PATH`, restore the file into that exact path instead. If it relied on the legacy `data/xenovoice.sqlite` default, restore that filename unchanged; Pemucik detects it automatically when `DATABASE_PATH` is unset and no new-name database exists.
 
 ## 5. Install and start the bot on the new VPS
 
@@ -153,7 +153,7 @@ If you want the bot supervised again with PM2:
 
 ```bash
 sudo npm install -g pm2
-pm2 start npm --name xenovoice -- start
+pm2 start npm --name pemucik-bot -- start
 pm2 save
 ```
 

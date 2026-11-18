@@ -1,10 +1,10 @@
-# XenoVoice Troubleshooting
+# Pemucik Troubleshooting
 
 Use this page for the most common MVP setup and runtime issues.
 
 ## `/setup` says the bot is missing permissions
 
-XenoVoice checks for required permissions before creating channels.
+Pemucik checks for required permissions before creating channels.
 
 Check that the bot has:
 
@@ -69,11 +69,11 @@ If claim is denied:
 
 - check that you are in the tracked temp room
 - check that the previous owner has really left that room
-- check that the room is still the tracked XenoVoice temp room
+- check that the room is still the tracked Pemucik temp room
 
 ## Lock or unlock fails with `Missing Permissions`
 
-XenoVoice changes only the relevant channel overwrite instead of wiping all overwrites. That is safer, but it still requires the bot to have permission to edit channel overwrites.
+Pemucik changes only the relevant channel overwrite instead of wiping all overwrites. That is safer, but it still requires the bot to have permission to edit channel overwrites.
 
 Check:
 
@@ -85,7 +85,7 @@ Check:
 
 Cleanup is intentionally conservative.
 
-XenoVoice will only delete a room when:
+Pemucik will only delete a room when:
 
 1. the room is empty
 2. the cleanup delay has passed
@@ -109,7 +109,7 @@ Immediate checks:
 3. inspect the `temp_channels` table
 4. open a bug report with the guild ID, channel ID, and the exact sequence of actions
 
-The intended safety rule is that XenoVoice never deletes a room unless it is confirmed in `temp_channels`.
+The intended safety rule is that Pemucik never deletes a room unless it is confirmed in `temp_channels`.
 
 ## Slash commands are missing
 

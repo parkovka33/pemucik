@@ -1,6 +1,6 @@
 # Governance
 
-This document describes how decisions are made for the XenoVoice repository.
+This document describes how decisions are made for the Pemucik repository.
 
 ## Scope
 
@@ -26,7 +26,7 @@ Governance applies to:
 
 ## Decision-making model
 
-XenoVoice uses a lightweight, safety-first model:
+Pemucik uses a lightweight, safety-first model:
 
 - small fixes: maintainer review and merge
 - larger changes: open an issue or draft PR first when behavior, docs surface, or workflows change materially
@@ -48,7 +48,7 @@ Behavioral and safety-sensitive changes should include:
 
 Before broader outreach or bot-directory submission:
 
-- use [docs/RELEASE-CHECKLIST.md](../docs/RELEASE-CHECKLIST.md)
+- use [docs/release-checklist.md](../docs/release-checklist.md)
 - keep public docs aligned with the shipped MVP
 - state known constraints honestly rather than implying planned features already exist
 

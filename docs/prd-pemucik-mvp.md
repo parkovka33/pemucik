@@ -1,13 +1,13 @@
-# Product Requirements Document: XenoVoice MVP
+# Product Requirements Document: Pemucik MVP
 
 Historical note:
 This PRD is the MVP foundation document.
 The live repository has since moved into post-MVP stabilization and polish, so some current commands and behaviors now extend beyond this strict MVP description.
-Use [README.md](/home/xenovoicik/xenovoice/README.md) and [MEMORY.md](/home/xenovoicik/xenovoice/MEMORY.md) for the current shipped command surface.
+Use [README.md](../README.md) and [MEMORY.md](../MEMORY.md) for the current shipped command surface.
 
 ## Product Overview
 
-**App Name:** XenoVoice  
+**App Name:** Pemucik
 **Version:** MVP  
 **Document Status:** Draft — ready for technical design  
 **Created:** 4 May 2026  
@@ -20,7 +20,7 @@ Use [README.md](/home/xenovoicik/xenovoice/README.md) and [MEMORY.md](/home/xeno
 Free-first temporary voice channels for Discord communities.
 
 **One-line Description:**  
-XenoVoice helps Discord servers create temporary voice rooms on demand, without server clutter and without aggressive premium paywalls.
+Pemucik helps Discord servers create temporary voice rooms on demand, without server clutter and without aggressive premium paywalls.
 
 **Launch Goal:**  
 Bring the MVP to a working, testable state.
@@ -56,7 +56,7 @@ Technical feasibility assumptions are based on current Discord documentation. Di
 
 ### Primary User: Community Server Admin
 
-XenoVoice is for Discord server owners and admins who manage active communities where members often want to jump into voice chats spontaneously.
+Pemucik is for Discord server owners and admins who manage active communities where members often want to jump into voice chats spontaneously.
 
 **Best-fit communities:**
 
@@ -86,7 +86,7 @@ XenoVoice is for Discord server owners and admins who manage active communities 
 
 ## Example User Story
 
-“Meet Alex, an admin of a creator/community Discord server. Members often want to start quick voice chats, but the server becomes cluttered if Alex creates many permanent channels. Alex adds XenoVoice and sets up one Join-to-Create channel. Now users join that channel, XenoVoice creates a temporary voice room for them, and the channel disappears when empty. The server stays clean, users get flexible voice spaces, and Alex does not need to manage everything manually.”
+“Meet Alex, an admin of a creator/community Discord server. Members often want to start quick voice chats, but the server becomes cluttered if Alex creates many permanent channels. Alex adds Pemucik and sets up one Join-to-Create channel. Now users join that channel, Pemucik creates a temporary voice room for them, and the channel disappears when empty. The server stays clean, users get flexible voice spaces, and Alex does not need to manage everything manually.”
 
 ---
 
@@ -94,7 +94,7 @@ XenoVoice is for Discord server owners and admins who manage active communities 
 
 Discord communities need spontaneous voice spaces, but permanent voice channels create clutter. Admins want automation, users want flexibility, and both groups want the experience to stay simple.
 
-XenoVoice solves this by creating temporary voice channels only when needed and deleting them when they are no longer used.
+Pemucik solves this by creating temporary voice channels only when needed and deleting them when they are no longer used.
 
 ### Why Existing Solutions Fall Short
 
@@ -105,9 +105,9 @@ XenoVoice solves this by creating temporary voice channels only when needed and 
 | Existing temp voice bots | Useful, but many advanced controls are often premium-only |
 | Web-dashboard-first tools | Add unnecessary complexity for a simple MVP |
 
-### XenoVoice Differentiation
+### Pemucik Differentiation
 
-XenoVoice should feel like:
+Pemucik should feel like:
 
 > “A clean, friendly, free-first Discord bot for temporary voice rooms — useful from day one, without pushing users into premium.”
 
@@ -117,7 +117,7 @@ XenoVoice should feel like:
 
 ### Core Positioning
 
-**XenoVoice is the free-first temporary voice channel bot for Discord communities.**
+**Pemucik is the free-first temporary voice channel bot for Discord communities.**
 
 The main message should be:
 
@@ -137,7 +137,7 @@ The main message should be:
 |---|---|
 | “Temporary voice channels without the premium pressure.” | Landing/listing tagline |
 | “Keep your Discord server clean with auto-created voice rooms.” | Admin-focused description |
-| “Join, talk, leave — XenoVoice cleans up automatically.” | Simple user-facing explanation |
+| “Join, talk, leave — Pemucik cleans up automatically.” | Simple user-facing explanation |
 | “Built for communities, supported by donations.” | Free-first positioning |
 | “No website needed. Manage everything inside Discord.” | Discord-native benefit |
 
@@ -149,7 +149,7 @@ The main message should be:
 
 #### 1. Discovery Phase
 
-**How they find XenoVoice:**
+**How they find Pemucik:**
 
 - Recommendation from another server admin
 - Discord bot listing
@@ -173,7 +173,7 @@ The main message should be:
 
 **Admin does:**
 
-1. Invites XenoVoice to the Discord server.
+1. Invites Pemucik to the Discord server.
 2. Runs `/setup`.
 3. Selects or creates a category.
 4. Creates a Join-to-Create channel.
@@ -181,7 +181,7 @@ The main message should be:
 6. Confirms setup.
 
 **Quick win:**  
-A user joins the generator channel, and XenoVoice immediately creates a temporary voice channel.
+A user joins the generator channel, and Pemucik immediately creates a temporary voice channel.
 
 #### 3. Core Usage Loop
 
@@ -192,13 +192,13 @@ A user wants to talk with friends/community members.
 They join the Join-to-Create voice channel.
 
 **Reward:**  
-XenoVoice creates a temporary channel and moves the user into it.
+Pemucik creates a temporary channel and moves the user into it.
 
 **Control:**  
 The creator can rename, lock/unlock, or set a user limit from a Discord-native panel.
 
 **Cleanup:**  
-When everyone leaves, XenoVoice deletes the empty temporary channel.
+When everyone leaves, Pemucik deletes the empty temporary channel.
 
 #### 4. Success Moment
 
@@ -217,7 +217,7 @@ The “aha!” moment happens when an admin sees:
 
 #### 1. Join-to-Create Temporary Voice Channel
 
-- **What:** Admin creates a special voice channel. When a user joins it, XenoVoice creates a new temporary voice channel.
+- **What:** Admin creates a special voice channel. When a user joins it, Pemucik creates a new temporary voice channel.
 - **User Story:** As a server member, I want to join one channel and automatically get my own voice room so that I can start talking without waiting for an admin.
 - **Success Criteria:**
   - [ ] Admin can configure one Join-to-Create channel.
@@ -229,7 +229,7 @@ The “aha!” moment happens when an admin sees:
 
 #### 2. Auto-Delete Empty Temporary Channels
 
-- **What:** XenoVoice deletes temporary voice channels when they become empty.
+- **What:** Pemucik deletes temporary voice channels when they become empty.
 - **User Story:** As an admin, I want unused temporary channels to disappear automatically so that my server stays clean.
 - **Success Criteria:**
   - [ ] Bot detects when a temporary channel becomes empty.
@@ -338,7 +338,7 @@ The first version should prove the core value: create temporary voice channels, 
 
 ### Post-MVP command roadmap
 
-Once XenoVoice moves beyond strict MVP scope, the command roadmap should support these Discord-native surfaces:
+Once Pemucik moves beyond strict MVP scope, the command roadmap should support these Discord-native surfaces:
 
 - `/voice permit` — allow a specific user or role to join the temporary room
 - `/voice reject` — reject or kick a specific user or role from the temporary room
@@ -373,7 +373,7 @@ Once XenoVoice moves beyond strict MVP scope, the command roadmap should support
 
 The MVP is successful if:
 
-- A new admin can set up XenoVoice without help.
+- A new admin can set up Pemucik without help.
 - A user can create a temporary voice channel by joining the generator.
 - The creator can rename, lock/unlock, and set a user limit.
 - Empty temporary channels are deleted reliably.
@@ -422,7 +422,7 @@ Since there is no website, “screens” are Discord commands, embeds, and panel
 #### Step 1 — Welcome Embed
 
 ```text
-🌀 XenoVoice Setup
+🌀 Pemucik Setup
 
 Create temporary voice channels for your server.
 
@@ -443,7 +443,7 @@ Choose where temporary voice channels should be created.
 Dropdown:
 • Use current category
 • Select existing category
-• Create new category: XenoVoice
+• Create new category: Pemucik
 ```
 
 #### Step 3 — Generator Channel
@@ -474,7 +474,7 @@ No limit / 2 / 5 / 10 / Custom
 #### Step 5 — Success
 
 ```text
-✅ XenoVoice is ready!
+✅ Pemucik is ready!
 
 Users can now join:
 ➕ Join to Create
@@ -491,7 +491,7 @@ I will create temporary voice channels automatically.
 Only works if the user owns a temporary voice channel.
 
 ```text
-🎛️ XenoVoice Control Panel
+🎛️ Pemucik Control Panel
 
 Channel: Viktoria's Room
 Owner: @Viktoria
@@ -547,7 +547,7 @@ Options:
 
 Node.js with discord.js is a strong MVP path because Discord bots commonly use event-driven logic, and temporary voice channel creation depends heavily on reacting to Discord events. discord.js provides high-level objects for interactions, channels, permissions, voice states, and components, which makes it easier for an AI coding assistant to generate understandable code.
 
-SQLite is enough for MVP because XenoVoice only needs to store lightweight settings and temporary channel mappings. A single VPS can run the bot and keep a local SQLite file, which stays within a budget of up to $10/month.
+SQLite is enough for MVP because Pemucik only needs to store lightweight settings and temporary channel mappings. A single VPS can run the bot and keep a local SQLite file, which stays within a budget of up to $10/month.
 
 ### Required Discord Permissions
 
@@ -659,7 +659,7 @@ Avoid JSON files for serious beta because they can corrupt more easily if multip
 - Placeholder production text such as “Lorem ipsum”.
 - Half-working features.
 - A setup flow that only the developer understands.
-- Deleting channels that XenoVoice did not create.
+- Deleting channels that Pemucik did not create.
 - Breaking admin permissions.
 - Ignoring Discord API rate limits.
 - Requiring a website for MVP.
@@ -699,7 +699,7 @@ Avoid JSON files for serious beta because they can corrupt more easily if multip
 
 ### Free-First Promise
 
-XenoVoice should not lock the core temporary voice experience behind premium.
+Pemucik should not lock the core temporary voice experience behind premium.
 
 ### Core Free Features
 
@@ -804,7 +804,7 @@ Use:
 - Create Discord application and bot.
 - Add bot token through environment variables.
 - Create basic bot login.
-- Add simple health log: “XenoVoice online”.
+- Add simple health log: “Pemucik online”.
 
 ### Day 2 — Slash Commands
 

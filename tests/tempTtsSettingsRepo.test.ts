@@ -3,7 +3,10 @@ import test from 'node:test';
 
 import { DEFAULT_NAME_TEMPLATE } from '../src/config/constants';
 import { upsertGuildSettings } from '../src/db/repositories/guildSettingsRepo';
-import { deleteTempChannelByChannelId, insertTempChannel } from '../src/db/repositories/tempChannelsRepo';
+import {
+  deleteTempChannelByChannelId,
+  insertTempChannel,
+} from '../src/db/repositories/tempChannelsRepo';
 import {
   deleteTempTtsSettingsByVoiceChannelId,
   findTempTtsSettingsByVoiceChannelId,
@@ -31,11 +34,11 @@ function seedGuildSettings(): void {
   });
 }
 
-function seedTrackedRoom(channelId: string): void {
+function seedTrackedRoom(channelId: string, ownerUserId = 'owner-user'): void {
   insertTempChannel({
     channelId,
     guildId: 'guild-1',
-    ownerUserId: 'owner-user',
+    ownerUserId,
     categoryId: 'category-1',
     isLocked: false,
     userLimit: 0,
@@ -93,7 +96,7 @@ test('upsertTempTtsSettings updates an existing row and listTempTtsSettingsByGui
   try {
     seedGuildSettings();
     seedTrackedRoom('voice-1');
-    seedTrackedRoom('voice-2');
+    seedTrackedRoom('voice-2', 'owner-user-2');
 
     upsertTempTtsSettings({
       voiceChannelId: 'voice-1',
@@ -114,7 +117,42 @@ test('upsertTempTtsSettings updates an existing row and listTempTtsSettingsByGui
 
     assert.equal(updated.enabled, true);
     assert.equal(updated.voiceKey, 'ru-alt');
-    assert.deepEqual(listTempTtsSettingsByGuildId('guild-1'), [updated, second]);
+    assert.deepEqual(listTempTtsSettingsByGuildId('guild-1'), [
+      updated,
+      second,
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('upsertTempTtsSettings preserves omitted fields on an existing row', () => {
+  const { cleanup } = setupTestDatabase();
+
+  try {
+    seedGuildSettings();
+    seedTrackedRoom('voice-1');
+    upsertTempTtsSettings({
+      voiceChannelId: 'voice-1',
+      guildId: 'guild-1',
+      enabled: true,
+      voiceKey: 'ru-alt',
+    });
+
+    const afterVoiceOnlyUpdate = upsertTempTtsSettings({
+      voiceChannelId: 'voice-1',
+      guildId: 'guild-1',
+      voiceKey: 'en-default',
+    });
+    const afterNoFieldUpdate = upsertTempTtsSettings({
+      voiceChannelId: 'voice-1',
+      guildId: 'guild-1',
+    });
+
+    assert.equal(afterVoiceOnlyUpdate.enabled, true);
+    assert.equal(afterVoiceOnlyUpdate.voiceKey, 'en-default');
+    assert.equal(afterNoFieldUpdate.enabled, true);
+    assert.equal(afterNoFieldUpdate.voiceKey, 'en-default');
   } finally {
     cleanup();
   }
@@ -149,7 +187,7 @@ test('deleteTempTtsSettingsByVoiceChannelId removes only the targeted row', () =
   try {
     seedGuildSettings();
     seedTrackedRoom('voice-1');
-    seedTrackedRoom('voice-2');
+    seedTrackedRoom('voice-2', 'owner-user-2');
     upsertTempTtsSettings({
       voiceChannelId: 'voice-1',
       guildId: 'guild-1',
@@ -162,7 +200,10 @@ test('deleteTempTtsSettingsByVoiceChannelId removes only the targeted row', () =
     deleteTempTtsSettingsByVoiceChannelId('voice-1');
 
     assert.equal(findTempTtsSettingsByVoiceChannelId('voice-1'), null);
-    assert.equal(findTempTtsSettingsByVoiceChannelId('voice-2')?.voiceChannelId, 'voice-2');
+    assert.equal(
+      findTempTtsSettingsByVoiceChannelId('voice-2')?.voiceChannelId,
+      'voice-2',
+    );
   } finally {
     cleanup();
   }

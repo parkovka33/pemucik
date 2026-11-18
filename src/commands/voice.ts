@@ -4,9 +4,27 @@ import type {
   Guild,
   VoiceRegion,
 } from 'discord.js';
-import { GuildMember, Role, SlashCommandBuilder } from 'discord.js';
+import {
+  GuildMember,
+  MessageFlags,
+  Role,
+  SlashCommandBuilder,
+} from 'discord.js';
 
 import { COMMON_VOICE_REGION_IDS } from '../config/constants';
+import {
+  formatTempTtsSettingsState,
+  getRoomTtsSettings,
+  resolveTempTtsActionInput,
+  setRoomTtsEnabled,
+  setRoomTtsVoicePreset,
+  TEMP_TTS_VOICE_PRESETS,
+  TtsControlServiceError,
+} from '../services/ttsControlService';
+import {
+  cleanupTempTtsPlaybackForVoiceChannel,
+  inspectTempTtsRuntime,
+} from '../services/ttsPlaybackService';
 import {
   claimPanelChannel,
   lockPanelChannel,
@@ -36,17 +54,23 @@ import {
   VoiceControlServiceError,
 } from '../services/voiceControlService';
 
-const DEFAULT_BITRATE_CHOICES_KBPS = [8, 16, 24, 32, 40, 48, 64, 80, 96, 128, 256, 384] as const;
-const FALLBACK_VOICE_REGION_IDS = COMMON_VOICE_REGION_IDS.filter((region) => region !== 'auto');
+const DEFAULT_BITRATE_CHOICES_KBPS = [
+  8, 16, 24, 32, 40, 48, 64, 80, 96, 128, 256, 384,
+] as const;
+const FALLBACK_VOICE_REGION_IDS = COMMON_VOICE_REGION_IDS.filter(
+  (region) => region !== 'auto',
+);
 const BLOCKED_SUBCOMMAND_MESSAGES = {
-  lfm: '`/voice lfm` временно отключена и скрыта из активных slash-команд Noi.',
+  lfm: '`/voice lfm` временно отключена и скрыта из активных slash-команд Pemucik.',
 } as const;
 
 function formatUserLimit(limit: number): string {
   return limit === 0 ? 'без лимита' : `${limit}`;
 }
 
-function formatRoomState(target: Awaited<ReturnType<typeof resolvePanelTarget>>): string {
+function formatRoomState(
+  target: Awaited<ReturnType<typeof resolvePanelTarget>>,
+): string {
   const ghosted = isVoiceRoomGhosted(target.channel) ? 'скрыта' : 'видима';
   const locked = target.record.isLocked ? 'закрыта' : 'открыта';
 
@@ -60,23 +84,34 @@ function formatRoomState(target: Awaited<ReturnType<typeof resolvePanelTarget>>)
   ].join('\n');
 }
 
-function buildVoiceReply(title: string, target: Awaited<ReturnType<typeof resolvePanelTarget>>): string {
+function buildVoiceReply(
+  title: string,
+  target: Awaited<ReturnType<typeof resolvePanelTarget>>,
+): string {
   return `${title}\n\n${formatRoomState(target)}`;
 }
 
-export function getAvailableBitrateChoices(guild: Guild | null, focusedValue?: number | null): number[] {
+export function getAvailableBitrateChoices(
+  guild: Guild | null,
+  focusedValue?: number | null,
+): number[] {
   const maxBitrateKbps = guild ? Math.floor(guild.maximumBitrate / 1_000) : 96;
-  const exactFocusedChoice = typeof focusedValue === 'number'
-    && Number.isInteger(focusedValue)
-    && focusedValue >= 8
-    && focusedValue <= maxBitrateKbps
-    ? [focusedValue]
-    : [];
+  const exactFocusedChoice =
+    typeof focusedValue === 'number' &&
+    Number.isInteger(focusedValue) &&
+    focusedValue >= 8 &&
+    focusedValue <= maxBitrateKbps
+      ? [focusedValue]
+      : [];
 
-  return Array.from(new Set([
-    ...exactFocusedChoice,
-    ...DEFAULT_BITRATE_CHOICES_KBPS.filter((choice) => choice <= maxBitrateKbps),
-  ])).sort((left, right) => left - right);
+  return Array.from(
+    new Set([
+      ...exactFocusedChoice,
+      ...DEFAULT_BITRATE_CHOICES_KBPS.filter(
+        (choice) => choice <= maxBitrateKbps,
+      ),
+    ]),
+  ).sort((left, right) => left - right);
 }
 
 export async function respondWithBitrateAutocomplete(
@@ -95,7 +130,9 @@ export async function respondWithBitrateAutocomplete(
   await interaction.respond(choices);
 }
 
-async function fetchAvailableVoiceRegionIds(interaction: AutocompleteInteraction): Promise<string[]> {
+async function fetchAvailableVoiceRegionIds(
+  interaction: AutocompleteInteraction,
+): Promise<string[]> {
   try {
     const regions = await interaction.client.fetchVoiceRegions();
     const values = regions
@@ -108,7 +145,9 @@ async function fetchAvailableVoiceRegionIds(interaction: AutocompleteInteraction
   }
 }
 
-async function respondWithRegionAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+async function respondWithRegionAutocomplete(
+  interaction: AutocompleteInteraction,
+): Promise<void> {
   const raw = String(interaction.options.getFocused()).trim().toLowerCase();
   const uniqueValues = await fetchAvailableVoiceRegionIds(interaction);
   const choices: ApplicationCommandOptionChoiceData<string>[] = uniqueValues
@@ -144,7 +183,7 @@ async function resolveMentionableAccessTarget(
 export const voiceCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('voice')
-    .setDescription('Команды управления временной комнатой Noi.')
+    .setDescription('Команды управления временной комнатой Pemucik.')
     .addSubcommand((subcommand) =>
       subcommand
         .setName('name')
@@ -161,21 +200,29 @@ export const voiceCommand: AppCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('lock')
-        .setDescription('Закрыть свою временную голосовую комнату для новых подключений.'),
+        .setDescription(
+          'Закрыть свою временную голосовую комнату для новых подключений.',
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('unlock')
-        .setDescription('Открыть свою временную голосовую комнату для новых подключений.'),
+        .setDescription(
+          'Открыть свою временную голосовую комнату для новых подключений.',
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('limit')
-        .setDescription('Изменить лимит участников во временной голосовой комнате.')
+        .setDescription(
+          'Изменить лимит участников во временной голосовой комнате.',
+        )
         .addIntegerOption((option) =>
           option
             .setName('limit')
-            .setDescription('Новый лимит участников: 0..99, где 0 отключает лимит')
+            .setDescription(
+              'Новый лимит участников: 0..99, где 0 отключает лимит',
+            )
             .setRequired(true)
             .setMinValue(0)
             .setMaxValue(99),
@@ -184,12 +231,16 @@ export const voiceCommand: AppCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('claim')
-        .setDescription('Забрать владение временной комнатой, если владелец отсутствует.'),
+        .setDescription(
+          'Забрать владение временной комнатой, если владелец отсутствует.',
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('transfer')
-        .setDescription('Передать владение комнатой другому участнику внутри комнаты.')
+        .setDescription(
+          'Передать владение комнатой другому участнику внутри комнаты.',
+        )
         .addUserOption((option) =>
           option
             .setName('user')
@@ -200,22 +251,30 @@ export const voiceCommand: AppCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('permit')
-        .setDescription('Разрешить конкретному пользователю или роли подключаться к комнате.')
+        .setDescription(
+          'Разрешить конкретному пользователю или роли подключаться к комнате.',
+        )
         .addMentionableOption((option) =>
           option
             .setName('mention')
-            .setDescription('Пользователь или роль, которым нужно разрешить вход')
+            .setDescription(
+              'Пользователь или роль, которым нужно разрешить вход',
+            )
             .setRequired(true),
         ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('reject')
-        .setDescription('Запретить доступ пользователю или роли, при необходимости выгнав пользователя.')
+        .setDescription(
+          'Запретить доступ пользователю или роли, при необходимости выгнав пользователя.',
+        )
         .addMentionableOption((option) =>
           option
             .setName('mention')
-            .setDescription('Пользователь или роль, которым нужно запретить вход')
+            .setDescription(
+              'Пользователь или роль, которым нужно запретить вход',
+            )
             .setRequired(true),
         ),
     )
@@ -239,7 +298,9 @@ export const voiceCommand: AppCommand = {
         .addIntegerOption((option) =>
           option
             .setName('bitrate')
-            .setDescription('Новый битрейт в kbps; можно выбрать подсказку или ввести своё значение')
+            .setDescription(
+              'Новый битрейт в kbps; можно выбрать подсказку или ввести своё значение',
+            )
             .setRequired(true)
             .setAutocomplete(true),
         ),
@@ -247,12 +308,16 @@ export const voiceCommand: AppCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('ghost')
-        .setDescription('Скрыть комнату из списка каналов для обычных участников.'),
+        .setDescription(
+          'Скрыть комнату из списка каналов для обычных участников.',
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName('unghost')
-        .setDescription('Снова сделать комнату видимой для обычных участников.'),
+        .setDescription(
+          'Снова сделать комнату видимой для обычных участников.',
+        ),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -268,19 +333,50 @@ export const voiceCommand: AppCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('region')
-        .setDescription('Переопределить голосовой регион или вернуть авто-режим.')
+        .setDescription(
+          'Переопределить голосовой регион или вернуть авто-режим.',
+        )
         .addStringOption((option) =>
           option
             .setName('region')
-            .setDescription('Доступный голосовой регион или auto; список подсказывается автодополнением')
+            .setDescription(
+              'Доступный голосовой регион или auto; список подсказывается автодополнением',
+            )
             .setRequired(true)
             .setAutocomplete(true),
         ),
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName('tts')
+        .setDescription(
+          'Configure local Piper text-to-speech for your temporary room.',
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName('enabled')
+            .setDescription('Enable or disable TTS for this room')
+            .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('voice')
+            .setDescription('Choose the local Piper voice preset')
+            .setRequired(false)
+            .addChoices(
+              ...TEMP_TTS_VOICE_PRESETS.map((preset) => ({
+                name: preset.label,
+                value: preset.key,
+              })),
+            ),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName('invite')
-        .setDescription('Отправить direct invite пользователю в вашу временную комнату.')
+        .setDescription(
+          'Отправить direct invite пользователю в вашу временную комнату.',
+        )
         .addUserOption((option) =>
           option
             .setName('member')
@@ -300,7 +396,8 @@ export const voiceCommand: AppCommand = {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'bitrate' && focused.name === 'bitrate') {
-      const focusedValue = typeof focused.value === 'number' ? focused.value : null;
+      const focusedValue =
+        typeof focused.value === 'number' ? focused.value : null;
       await respondWithBitrateAutocomplete(
         interaction,
         getAvailableBitrateChoices(interaction.guild, focusedValue),
@@ -317,14 +414,18 @@ export const voiceCommand: AppCommand = {
   },
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild) {
-      await safeReply(interaction, {
-        content: 'Эту команду можно использовать только внутри сервера.',
-        ephemeral: true,
-      });
+      await safeReply(
+        interaction,
+        {
+          content: 'Эту команду можно использовать только внутри сервера.',
+          flags: MessageFlags.Ephemeral,
+        },
+        context.logger,
+      );
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const actor = await interaction.guild.members.fetch(interaction.user.id);
@@ -338,28 +439,79 @@ export const voiceCommand: AppCommand = {
           subcommand,
         });
 
-        await safeReply(interaction, {
-          content: BLOCKED_SUBCOMMAND_MESSAGES[subcommand],
-          ephemeral: true,
-        });
-        return;
-      }
-
-      if (subcommand === 'tts') {
-        context.logger.info({
-          event: 'voice_tts_temporarily_disabled',
-          guildId: interaction.guild.id,
-          userId: interaction.user.id,
-        });
-
-        await safeReply(interaction, {
-          content: '`/voice tts` временно отключён и скрыт из активных slash-команд, пока мы разбираемся со стабильностью voice/TTS. Остальные `/voice ...` команды продолжают работать.',
-          ephemeral: true,
-        });
+        await safeReply(
+          interaction,
+          {
+            content: BLOCKED_SUBCOMMAND_MESSAGES[subcommand],
+            flags: MessageFlags.Ephemeral,
+          },
+          context.logger,
+        );
         return;
       }
 
       const target = await resolvePanelTarget(actor);
+
+      if (subcommand === 'tts') {
+        const action = resolveTempTtsActionInput(
+          interaction.options.getBoolean('enabled'),
+          interaction.options.getString('voice'),
+        );
+        let record = getRoomTtsSettings(target);
+
+        if (action.kind === 'enabled') {
+          if (action.enabled) {
+            const runtime = await inspectTempTtsRuntime(record.voiceKey);
+
+            if (!runtime.available) {
+              throw new TtsControlServiceError(
+                'TTS_RUNTIME_UNAVAILABLE',
+                `TTS cannot be enabled until the local runtime is ready: ${runtime.problems.join(' ')}`,
+              );
+            }
+          }
+
+          record = setRoomTtsEnabled(target, action.enabled);
+
+          if (!action.enabled) {
+            cleanupTempTtsPlaybackForVoiceChannel(
+              interaction.guild.id,
+              target.channel.id,
+            );
+          }
+        } else {
+          if (record.enabled) {
+            const runtime = await inspectTempTtsRuntime(action.voiceKey);
+
+            if (!runtime.available) {
+              throw new TtsControlServiceError(
+                'TTS_RUNTIME_UNAVAILABLE',
+                `The selected voice cannot be used while TTS is enabled: ${runtime.problems.join(' ')}`,
+              );
+            }
+          }
+
+          record = setRoomTtsVoicePreset(target, action.voiceKey);
+        }
+
+        context.logger.info({
+          event:
+            action.kind === 'enabled'
+              ? action.enabled
+                ? 'voice_tts_enabled'
+                : 'voice_tts_disabled'
+              : 'voice_tts_voice_changed',
+          guildId: interaction.guild.id,
+          userId: interaction.user.id,
+          channelId: target.channel.id,
+          voiceKey: record.voiceKey,
+        });
+
+        await safeReply(interaction, {
+          content: `TTS settings updated for <#${target.channel.id}>.\n\n${formatTempTtsSettingsState(record)}`,
+        });
+        return;
+      }
 
       if (subcommand === 'name') {
         const newName = interaction.options.getString('name', true);
@@ -373,15 +525,19 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply(`Название комнаты обновлено на **${updatedTarget.channel.name}**.`, updatedTarget),
+          content: buildVoiceReply(
+            `Название комнаты обновлено на **${updatedTarget.channel.name}**.`,
+            updatedTarget,
+          ),
         });
         return;
       }
 
       if (subcommand === 'lock' || subcommand === 'unlock') {
-        const updatedTarget = subcommand === 'lock'
-          ? await lockPanelChannel(target)
-          : await unlockPanelChannel(target);
+        const updatedTarget =
+          subcommand === 'lock'
+            ? await lockPanelChannel(target)
+            : await unlockPanelChannel(target);
 
         context.logger.info({
           event: `voice_${subcommand}_used`,
@@ -403,7 +559,11 @@ export const voiceCommand: AppCommand = {
 
       if (subcommand === 'limit') {
         const limit = interaction.options.getInteger('limit', true);
-        const updatedTarget = await setPanelChannelUserLimit(target, limit, actor);
+        const updatedTarget = await setPanelChannelUserLimit(
+          target,
+          limit,
+          actor,
+        );
 
         context.logger.info({
           event: 'voice_limit_used',
@@ -414,7 +574,10 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply(`Лимит комнаты обновлён: **${formatUserLimit(updatedTarget.channel.userLimit)}**.`, updatedTarget),
+          content: buildVoiceReply(
+            `Лимит комнаты обновлён: **${formatUserLimit(updatedTarget.channel.userLimit)}**.`,
+            updatedTarget,
+          ),
         });
         return;
       }
@@ -430,15 +593,24 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply('Владение комнатой передано вам.', updatedTarget),
+          content: buildVoiceReply(
+            'Владение комнатой передано вам.',
+            updatedTarget,
+          ),
         });
         return;
       }
 
       if (subcommand === 'transfer') {
         const nextOwnerUser = interaction.options.getUser('user', true);
-        const nextOwner = await interaction.guild.members.fetch(nextOwnerUser.id);
-        const updatedTarget = await transferVoiceChannelOwnership(target, actor, nextOwner);
+        const nextOwner = await interaction.guild.members.fetch(
+          nextOwnerUser.id,
+        );
+        const updatedTarget = await transferVoiceChannelOwnership(
+          target,
+          actor,
+          nextOwner,
+        );
 
         context.logger.info({
           event: 'voice_transfer_used',
@@ -449,16 +621,20 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply(`Владение комнатой передано участнику <@${nextOwner.id}>.`, updatedTarget),
+          content: buildVoiceReply(
+            `Владение комнатой передано участнику <@${nextOwner.id}>.`,
+            updatedTarget,
+          ),
         });
         return;
       }
 
       if (subcommand === 'permit' || subcommand === 'reject') {
         const accessTarget = await resolveMentionableAccessTarget(interaction);
-        const updatedTarget = subcommand === 'permit'
-          ? await permitVoiceAccess(target, actor, accessTarget)
-          : await rejectVoiceAccess(target, actor, accessTarget);
+        const updatedTarget =
+          subcommand === 'permit'
+            ? await permitVoiceAccess(target, actor, accessTarget)
+            : await rejectVoiceAccess(target, actor, accessTarget);
 
         context.logger.info({
           event: `voice_${subcommand}_used`,
@@ -477,7 +653,11 @@ export const voiceCommand: AppCommand = {
 
       if (subcommand === 'status') {
         const status = interaction.options.getString('status', true);
-        const appliedStatus = await setVoiceChannelStatus(target, actor, status);
+        const appliedStatus = await setVoiceChannelStatus(
+          target,
+          actor,
+          status,
+        );
         const updatedTarget = await resolvePanelTarget(actor);
 
         context.logger.info({
@@ -501,16 +681,24 @@ export const voiceCommand: AppCommand = {
           channelId: target.channel.id,
         });
 
-        await safeReply(interaction, {
-          content: `${buildVoiceReply('Отдельный текстовый канал больше не требуется.', target)}\n\nИспользуйте встроенный чат этой голосовой комнаты. Озвучка TTS сейчас временно отключена.`,
-          ephemeral: true,
-        });
+        await safeReply(
+          interaction,
+          {
+            content: `${buildVoiceReply('Отдельный текстовый канал больше не требуется.', target)}\n\nИспользуйте встроенный чат этой голосовой комнаты. Озвучка TTS сейчас временно отключена.`,
+            flags: MessageFlags.Ephemeral,
+          },
+          context.logger,
+        );
         return;
       }
 
       if (subcommand === 'bitrate') {
         const bitrate = interaction.options.getInteger('bitrate', true);
-        const updatedTarget = await setVoiceChannelBitrate(target, actor, bitrate);
+        const updatedTarget = await setVoiceChannelBitrate(
+          target,
+          actor,
+          bitrate,
+        );
 
         context.logger.info({
           event: 'voice_bitrate_used',
@@ -521,15 +709,19 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply(`Битрейт комнаты обновлён: **${formatVoiceBitrate(updatedTarget.channel)}**.`, updatedTarget),
+          content: buildVoiceReply(
+            `Битрейт комнаты обновлён: **${formatVoiceBitrate(updatedTarget.channel)}**.`,
+            updatedTarget,
+          ),
         });
         return;
       }
 
       if (subcommand === 'ghost' || subcommand === 'unghost') {
-        const updatedTarget = subcommand === 'ghost'
-          ? await ghostVoiceChannel(target, actor)
-          : await unghostVoiceChannel(target, actor);
+        const updatedTarget =
+          subcommand === 'ghost'
+            ? await ghostVoiceChannel(target, actor)
+            : await unghostVoiceChannel(target, actor);
 
         context.logger.info({
           event: `voice_${subcommand}_used`,
@@ -563,7 +755,9 @@ export const voiceCommand: AppCommand = {
 
         await safeReply(interaction, {
           content: buildVoiceReply(
-            toggle ? 'NSFW-режим для комнаты включён.' : 'NSFW-режим для комнаты выключен.',
+            toggle
+              ? 'NSFW-режим для комнаты включён.'
+              : 'NSFW-режим для комнаты выключен.',
             updatedTarget,
           ),
         });
@@ -572,7 +766,11 @@ export const voiceCommand: AppCommand = {
 
       if (subcommand === 'region') {
         const region = interaction.options.getString('region', true);
-        const updatedTarget = await setVoiceChannelRegion(target, actor, region);
+        const updatedTarget = await setVoiceChannelRegion(
+          target,
+          actor,
+          region,
+        );
 
         context.logger.info({
           event: 'voice_region_used',
@@ -583,7 +781,10 @@ export const voiceCommand: AppCommand = {
         });
 
         await safeReply(interaction, {
-          content: buildVoiceReply(`Регион комнаты обновлён: **${formatVoiceRegion(updatedTarget.channel)}**.`, updatedTarget),
+          content: buildVoiceReply(
+            `Регион комнаты обновлён: **${formatVoiceRegion(updatedTarget.channel)}**.`,
+            updatedTarget,
+          ),
         });
         return;
       }
@@ -592,7 +793,12 @@ export const voiceCommand: AppCommand = {
         const targetUser = interaction.options.getUser('member', true);
         const invitee = await interaction.guild.members.fetch(targetUser.id);
         const message = interaction.options.getString('message');
-        const result = await createVoiceChannelInvite(target, actor, invitee, message);
+        const result = await createVoiceChannelInvite(
+          target,
+          actor,
+          invitee,
+          message,
+        );
 
         context.logger.info({
           event: 'voice_invite_used',
@@ -611,8 +817,9 @@ export const voiceCommand: AppCommand = {
       }
     } catch (error) {
       if (
-        error instanceof PanelServiceError
-        || error instanceof VoiceControlServiceError
+        error instanceof PanelServiceError ||
+        error instanceof VoiceControlServiceError ||
+        error instanceof TtsControlServiceError
       ) {
         context.logger.warn({
           event: 'voice_command_blocked',
@@ -623,19 +830,26 @@ export const voiceCommand: AppCommand = {
           subcommand: interaction.options.getSubcommand(),
         });
 
-        await safeReply(interaction, {
-          content: error.message,
-          ephemeral: true,
-        });
+        await safeReply(
+          interaction,
+          {
+            content: error.message,
+            flags: MessageFlags.Ephemeral,
+          },
+          context.logger,
+        );
         return;
       }
 
-      context.logger.error({
-        event: 'voice_command_failed',
-        guildId: interaction.guild.id,
-        userId: interaction.user.id,
-        subcommand: interaction.options.getSubcommand(),
-      }, error);
+      context.logger.error(
+        {
+          event: 'voice_command_failed',
+          guildId: interaction.guild.id,
+          userId: interaction.user.id,
+          subcommand: interaction.options.getSubcommand(),
+        },
+        error,
+      );
 
       throw error;
     }

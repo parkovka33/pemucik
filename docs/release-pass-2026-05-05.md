@@ -1,16 +1,16 @@
-# XenoVoice Release Pass — 2026-05-05
+# Pemucik Release Pass — 2026-05-05
 
 Historical note:
 This file is a dated snapshot of the release-readiness picture on 2026-05-05.
 It is **not** the authoritative current project status after later post-MVP control expansion and polishing work.
-Use [README.md](/home/xenovoicik/xenovoice/README.md) and [MEMORY.md](/home/xenovoicik/xenovoice/MEMORY.md) for the current command surface and active priorities.
+Use [README.md](../README.md) and [MEMORY.md](../MEMORY.md) for the current command surface and active priorities.
 
-This document records a real pre-listing pass against [docs/RELEASE-CHECKLIST.md](/home/xenovoicik/xenovoice/docs/RELEASE-CHECKLIST.md).
+This document records a real pre-listing pass against [docs/release-checklist.md](./release-checklist.md).
 
 ## Status
 
 Historical result for 2026-05-05:
-XenoVoice was considered **ready with caveats** for a public bot-directory submission at that time.
+Pemucik was considered **ready with caveats** for a public bot-directory submission at that time.
 
 The repository, local checks, and live Discord verification from that pass were in good shape. Later post-MVP changes mean this document should no longer be treated as the current go/no-go gate.
 
@@ -19,9 +19,9 @@ The repository, local checks, and live Discord verification from that pass were 
 Closed in this pass:
 
 - `README.md` matches the current shipped MVP surface and constraints.
-- `docs/LISTING.md` stays within current MVP scope and does not promise unsupported features.
-- `docs/QUICKSTART.md` and `docs/TROUBLESHOOTING.md` match the current setup/support flow.
-- `.github` FAQ/support/issue-template files are aligned with XenoVoice.
+- `docs/listing.md` stays within current MVP scope and does not promise unsupported features.
+- `docs/quickstart.md` and `docs/troubleshooting.md` match the current setup/support flow.
+- `.github` FAQ/support/issue-template files are aligned with Pemucik.
 - The last obvious template-era public blockers in `.github` were cleaned up in this pass:
   - `GOVERNANCE.md`
   - `workflows/greetings.yml`
@@ -48,7 +48,7 @@ Not required in this pass:
 
 Verified live on 2026-05-05:
 
-- `/setup` created or reused the `XenoVoice` category correctly
+- `/setup` created or reused the `Pemucik` category correctly
 - generator channel was present and usable
 - joining the generator created a tracked temp room
 - the member was moved into the temp room
@@ -74,7 +74,7 @@ Observed notes from the live pass:
 Closed by repo/code review:
 
 - `/help` copy matches the current product surface
-- known permission failure modes are documented in `docs/TROUBLESHOOTING.md`
+- known permission failure modes are documented in `docs/troubleshooting.md`
 - `/support` includes both configured-link and fallback-copy paths in code
 
 Closed in the live pass:
@@ -86,11 +86,11 @@ Closed in the live pass:
 
 Recommended short description:
 
-`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and XenoVoice creates and cleans up rooms automatically.`
+`Free-first Discord bot for temporary voice channels. Run /setup once, let members join the generator voice channel, and Pemucik creates and cleans up rooms automatically.`
 
 Recommended long description:
 
-Use the English long description from `docs/LISTING.md` as the default listing text for directories that support a fuller overview.
+Use the English long description from `docs/listing.md` as the default listing text for directories that support a fuller overview.
 
 Closed by docs review:
 
@@ -108,7 +108,7 @@ Verified in operator review:
 Chosen in this pass:
 
 - use the recommended English short description above as the default short listing copy
-- use the English long description from `docs/LISTING.md` as the default long listing copy
+- use the English long description from `docs/listing.md` as the default long listing copy
 - expose the public support link in listings
 - do not expose the public donation link in listings yet
 
@@ -128,7 +128,7 @@ There are no confirmed product blockers from this pass.
 Chosen operator decisions:
 
 1. Use the recommended English short description for submission by default.
-2. Use the English long description from `docs/LISTING.md` for submission by default.
+2. Use the English long description from `docs/listing.md` for submission by default.
 3. Expose support publicly, but keep the donation link out of the first public listing.
 
 Non-blocking notes:

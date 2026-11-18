@@ -28,7 +28,7 @@ jobs:
             }
 
             const message = isIssue
-              ? `Thanks for opening your first issue for XenoVoice. A maintainer will review the report when possible. If the issue involves Discord permissions, setup flow, or temp-room cleanup, include that context so it is easier to reproduce.`
+              ? `Thanks for opening your first issue for Pemucik. A maintainer will review the report when possible. If the issue involves Discord permissions, setup flow, or temp-room cleanup, include that context so it is easier to reproduce.`
               : `Thanks for your first pull request. Please make sure the PR template is complete and links are verified. We appreciate your contribution.`;
 
             const issueNumber = isIssue

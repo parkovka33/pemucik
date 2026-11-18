@@ -1,27 +1,41 @@
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from 'discord.js';
 
 import {
   findGuildSettingsByGuildId,
   updateGuildDefaultBitrate,
 } from '../db/repositories/guildSettingsRepo';
-import { resolveVoiceBitrateBits, VoiceControlServiceError } from '../services/voiceControlService';
+import {
+  resolveVoiceBitrateBits,
+  VoiceControlServiceError,
+} from '../services/voiceControlService';
 import type { AppCommand } from '../types';
 import { safeReply } from '../utils/safeReply';
-import { getAvailableBitrateChoices, respondWithBitrateAutocomplete } from './voice';
+import {
+  getAvailableBitrateChoices,
+  respondWithBitrateAutocomplete,
+} from './voice';
 
 export const setCommand: AppCommand = {
   data: new SlashCommandBuilder()
     .setName('set')
-    .setDescription('Административные настройки Noi.')
+    .setDescription('Административные настройки Pemucik.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((subcommand) =>
       subcommand
         .setName('bitrate')
-        .setDescription('Задать битрейт по умолчанию для новых временных комнат.')
+        .setDescription(
+          'Задать битрейт по умолчанию для новых временных комнат.',
+        )
         .addIntegerOption((option) =>
           option
             .setName('value')
-            .setDescription('Битрейт в kbps для новых комнат; можно выбрать подсказку или ввести своё значение')
+            .setDescription(
+              'Битрейт в kbps для новых комнат; можно выбрать подсказку или ввести своё значение',
+            )
             .setRequired(true)
             .setAutocomplete(true),
         ),
@@ -34,7 +48,8 @@ export const setCommand: AppCommand = {
       return;
     }
 
-    const focusedValue = typeof focused.value === 'number' ? focused.value : null;
+    const focusedValue =
+      typeof focused.value === 'number' ? focused.value : null;
     await respondWithBitrateAutocomplete(
       interaction,
       getAvailableBitrateChoices(interaction.guild, focusedValue),
@@ -42,18 +57,28 @@ export const setCommand: AppCommand = {
   },
   async execute(interaction, context) {
     if (!interaction.inGuild() || !interaction.guild) {
-      await safeReply(interaction, {
-        content: 'Эту команду можно использовать только внутри сервера.',
-        ephemeral: true,
-      });
+      await safeReply(
+        interaction,
+        {
+          content: 'Эту команду можно использовать только внутри сервера.',
+          flags: MessageFlags.Ephemeral,
+        },
+        context.logger,
+      );
       return;
     }
 
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      await safeReply(interaction, {
-        content: 'Эта команда доступна только администраторам сервера.',
-        ephemeral: true,
-      });
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
+      await safeReply(
+        interaction,
+        {
+          content: 'Эта команда доступна только администраторам сервера.',
+          flags: MessageFlags.Ephemeral,
+        },
+        context.logger,
+      );
       return;
     }
 
@@ -61,10 +86,15 @@ export const setCommand: AppCommand = {
       const settings = findGuildSettingsByGuildId(interaction.guild.id);
 
       if (!settings) {
-        await safeReply(interaction, {
-          content: 'Сначала запустите `/setup`, а затем меняйте настройки по умолчанию.',
-          ephemeral: true,
-        });
+        await safeReply(
+          interaction,
+          {
+            content:
+              'Сначала запустите `/setup`, а затем меняйте настройки по умолчанию.',
+            flags: MessageFlags.Ephemeral,
+          },
+          context.logger,
+        );
         return;
       }
 
@@ -79,10 +109,14 @@ export const setCommand: AppCommand = {
         bitrateKbps: value,
       });
 
-      await safeReply(interaction, {
-        content: `Новые временные комнаты будут создаваться с битрейтом ${value} kbps. Уже существующие комнаты не изменяются.`,
-        ephemeral: true,
-      });
+      await safeReply(
+        interaction,
+        {
+          content: `Новые временные комнаты будут создаваться с битрейтом ${value} kbps. Уже существующие комнаты не изменяются.`,
+          flags: MessageFlags.Ephemeral,
+        },
+        context.logger,
+      );
     } catch (error) {
       if (error instanceof VoiceControlServiceError) {
         context.logger.warn({
@@ -93,18 +127,25 @@ export const setCommand: AppCommand = {
           message: error.message,
         });
 
-        await safeReply(interaction, {
-          content: error.message,
-          ephemeral: true,
-        });
+        await safeReply(
+          interaction,
+          {
+            content: error.message,
+            flags: MessageFlags.Ephemeral,
+          },
+          context.logger,
+        );
         return;
       }
 
-      context.logger.error({
-        event: 'set_bitrate_failed',
-        guildId: interaction.guild.id,
-        userId: interaction.user.id,
-      }, error);
+      context.logger.error(
+        {
+          event: 'set_bitrate_failed',
+          guildId: interaction.guild.id,
+          userId: interaction.user.id,
+        },
+        error,
+      );
 
       throw error;
     }

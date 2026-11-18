@@ -7,7 +7,7 @@ export function registerReadyHandler(client: Client, logger: Logger): void {
   client.once('clientReady', (readyClient) => {
     logger.info({
       event: 'bot_ready',
-      message: 'Noi is online.',
+      message: 'Pemucik is online.',
       userTag: readyClient.user.tag,
       userId: readyClient.user.id,
     });
@@ -30,6 +30,7 @@ async function recoverTrackedTempChannels(client: Client, logger: Logger): Promi
         guildId: guild.id,
         scanned: summary.scanned,
         removedStale: summary.removedStale,
+        retryPending: summary.retryPending,
         checkedEmpty: summary.checkedEmpty,
         deletedEmpty: summary.deletedEmpty,
         syncedLinkedText: summary.syncedLinkedText,

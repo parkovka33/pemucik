@@ -1,8 +1,8 @@
-# AGENTS.md — Master Plan for XenoVoice
+# AGENTS.md — Master Plan for Pemucik
 
 ## Project Overview & Stack
-**App:** XenoVoice
-**Overview:** XenoVoice is a Discord-only bot that creates temporary voice channels on demand. An admin runs `/setup` once, members join the generator voice channel, the bot creates a temporary room, moves the member into it, assigns ownership, exposes Discord-native controls, and safely deletes the room when it becomes empty. The MVP must stay reliable, friendly, lightweight, and easy to debug for a solo founder working with AI assistance.
+**App:** Pemucik
+**Overview:** Pemucik is a Discord-only bot that creates temporary voice channels on demand. An admin runs `/setup` once, members join the generator voice channel, the bot creates a temporary room, moves the member into it, assigns ownership, exposes Discord-native controls, and safely deletes the room when it becomes empty. The MVP must stay reliable, friendly, lightweight, and easy to debug for a solo founder working with AI assistance.
 **Stack:** Node.js LTS, TypeScript, discord.js v14, SQLite with better-sqlite3, PM2 on a small Linux VPS
 **Critical Constraints:** Discord-only UX, no website, no custom domain, hosting under $10/month, one Join-to-Create generator is enough for MVP, destructive actions must be database-confirmed, and the bot must never delete non-temporary channels.
 
@@ -16,7 +16,7 @@ Execute these commands for standard development workflows. Do not invent new pac
 - **Formatting:** `npm run format`
 - **Build:** `npm run build`
 - **Production Start:** `npm start`
-- **Testing:** No dedicated automated test script is defined in the source documents yet. Use the manual Discord verification loop in `agent_docs/testing.md` and add targeted unit tests only for pure logic.
+- **Testing:** `npm test` builds the project and runs the compiled Node test suite. Use the manual Discord verification loop in `agent_docs/testing.md` for core voice behavior and add targeted unit tests only for pure logic.
 
 ## Protected Areas
 Do NOT modify these areas without explicit human approval:
